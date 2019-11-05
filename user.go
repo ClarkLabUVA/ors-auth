@@ -11,11 +11,6 @@ import (
 
 )
 
-var MS = MongoServer{
-  URI: "mongodb://mongoadmin:mongosecret@localhost:27017",
-  Database: "auth",
-  Collection: "auth",
-  }
 
 
 
@@ -46,6 +41,7 @@ func  (ms *MongoServer) connect() (ctx context.Context, cancel context.CancelFun
 
 type User struct {
   Id            string      `json:"@id" bson:"_id"`
+  Type          string      `json:"@type" bson:"@type"`
   Name          string      `json:"name" bson:"name"`
   Email         string      `json:"email" bson:"email"`
   Admin         bool        `json:"admin" bson:"admin"`
@@ -101,10 +97,12 @@ func (ms *MongoServer)CreateUser(u User) (err error) {
   // connect to the user collection
   collection := client.Database(ms.Database).Collection(ms.Collection)
 
-
-  // marshal the user record
+  // default values
+  u.Type = "Person"
   bsonRecord, err := bson.Marshal(u)
-  if err != nil { return }
+  if err != nil {
+    return
+  }
 
   _, err = collection.InsertOne(ctx, bsonRecord)
   if err != nil { return }
