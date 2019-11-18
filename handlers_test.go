@@ -12,11 +12,12 @@ import (
 
 
 func TestUserHandlers(t *testing.T) {
+
   u := User{
     Id: "orcid:1234-1234",
     Name: "Joe Schmoe",
     Email: "joe.schmoe@example.org",
-    Admin: false,
+    IsAdmin: false,
     Groups: []string{},
   }
 
@@ -81,6 +82,5 @@ func TestUserHandlers(t *testing.T) {
       t.Fatalf("Failed to Successfully Create User")
     }
   })
-
 
 }

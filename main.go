@@ -8,12 +8,6 @@ import (
   "github.com/julienschmidt/httprouter"
 )
 
-var MS = MongoServer{
-  URI: "mongodb://mongoadmin:mongosecret@localhost:27017",
-  Database: "auth",
-  Collection: "auth",
-  }
-
 
 func main() {
 
@@ -23,6 +17,7 @@ func main() {
   router.Handler("GET", "/user", http.HandlerFunc(ListUserHandler))
   router.Handler("GET", "/user/:userID", http.HandlerFunc(GetUserHandler))
   router.Handler("DELETE", "/user/:userID", http.HandlerFunc(DeleteUserHandler))
+
 
   http.ListenAndServe(":8080", router)
 
@@ -36,8 +31,8 @@ func CreateUserHandler(w http.ResponseWriter, r *http.Request) {
   var u User
   var err error
   var requestBody []byte
-  requestBody, err = ioutil.ReadAll(r.Body)
 
+  requestBody, err = ioutil.ReadAll(r.Body)
 
   // If Error for Unmarshaling JSON Body
   if !json.Valid(requestBody) {
@@ -56,7 +51,7 @@ func CreateUserHandler(w http.ResponseWriter, r *http.Request) {
     return
   }
 
-  err = MS.CreateUser(u)
+  err = u.Create()
 
   if err == nil {
     w.WriteHeader(201)
@@ -66,7 +61,7 @@ func CreateUserHandler(w http.ResponseWriter, r *http.Request) {
   }
 
   // Error for when the User with u.Id Already Exists
-  if errors.Is(err, ErrUserExists) {
+  if errors.Is(err, ErrDocumentExists) {
     w.WriteHeader(400)
     w.Header().Set("Content-Type", "application/ld+json")
     w.Write([]byte(`{"error": "User Already Exists" ,"@id": "` + u.Id + `"}`))
@@ -88,7 +83,7 @@ func ListUserHandler(w http.ResponseWriter, r *http.Request) {
   var err error
   var userList []User
 
-  userList, err = MS.ListUser()
+  userList, err = listUsers()
 
   if err != nil {
     return
@@ -112,11 +107,14 @@ func ListUserHandler(w http.ResponseWriter, r *http.Request) {
 
 // GET /user/:userID
 func GetUserHandler(w http.ResponseWriter, r *http.Request) {
+  var u User
+  var err error
+
   // get the user id from the route
   params := httprouter.ParamsFromContext(r.Context())
-  userID := params.ByName("userID")
 
-  u, err := MS.GetUser(userID)
+  u.Id = params.ByName("userID")
+  err = u.Get()
 
   if err != nil {
     return
@@ -139,11 +137,15 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 // Delete /user/:userID
 func DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 
+  var deletedUser User
+  var err error
+
   // get the user id from the route
   params := httprouter.ParamsFromContext(r.Context())
-  userID := params.ByName("userID")
 
-  deletedUser, err := MS.DeleteUser(userID)
+  deletedUser.Id = params.ByName("userID")
+  err = deletedUser.Delete()
+
 
   if err != nil {
     return
