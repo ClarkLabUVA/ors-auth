@@ -13,10 +13,10 @@ func main() {
 
   router := httprouter.New()
 
-  router.Handler("POST", "/user", http.HandlerFunc(CreateUserHandler))
-  router.Handler("GET", "/user", http.HandlerFunc(ListUserHandler))
-  router.Handler("GET", "/user/:userID", http.HandlerFunc(GetUserHandler))
-  router.Handler("DELETE", "/user/:userID", http.HandlerFunc(DeleteUserHandler))
+  router.Handler("POST", "/user", http.HandlerFunc(UserCreate))
+  router.Handler("GET", "/user", http.HandlerFunc(UserList))
+  router.Handler("GET", "/user/:userID", http.HandlerFunc(UserGet))
+  router.Handler("DELETE", "/user/:userID", http.HandlerFunc(UserDelete))
 
 
   http.ListenAndServe(":8080", router)
@@ -25,7 +25,7 @@ func main() {
 
 
 // POST /user/
-func CreateUserHandler(w http.ResponseWriter, r *http.Request) {
+func UserCreate(w http.ResponseWriter, r *http.Request) {
 
   // read and marshal body json into
   var u User
@@ -78,7 +78,7 @@ func CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 
 
 // GET /user/
-func ListUserHandler(w http.ResponseWriter, r *http.Request) {
+func UserList(w http.ResponseWriter, r *http.Request) {
 
   var err error
   var userList []User
@@ -106,7 +106,7 @@ func ListUserHandler(w http.ResponseWriter, r *http.Request) {
 
 
 // GET /user/:userID
-func GetUserHandler(w http.ResponseWriter, r *http.Request) {
+func UserGet(w http.ResponseWriter, r *http.Request) {
   var u User
   var err error
 
@@ -135,7 +135,7 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 
 
 // Delete /user/:userID
-func DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
+func UserDelete(w http.ResponseWriter, r *http.Request) {
 
   var deletedUser User
   var err error
@@ -160,5 +160,49 @@ func DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
   w.Header().Set("Content-Type", "application/ld+json")
   w.Write(responseBytes)
   return
+
+}
+
+
+func ChallengeCreate(w http.ResponseWriter, r *http.Request) {}
+
+func ChallengeList(w http.ResponseWriter, r *http.Request) {}
+
+
+func ResourceCreate(w http.Response, r *http.Request) {}
+
+func ResourceGet(w http.Response, r *http.Request) {}
+
+func ResourceDelete(w http.Response, r *http.Request) {}
+
+func ResourceList(w http.Response, r *http.Request) {}
+
+
+
+func PolicyCreate(w http.Response, r *http.Request) {}
+
+func PolicyGet(w http.Response, r *http.Request) {}
+
+func PolicyUpdate(w http.Response, r *http.Request) {}
+
+func PolicyDelete(w http.Response, r *http.Request) {}
+
+func PolicyList(w http.Response, r *http.Request) {}
+
+
+func GroupCreate(w http.Response, r *http.Request) {}
+
+func GroupGet(w http.Response, r *http.Request) {}
+
+func GroupUpdate(w http.Response, r *http.Request) {}
+
+func GroupDelete(w http.Response, r *http.Request) {}
+
+func GroupList(w http.Response, r *http.Request) {}
+
+
+// Write a Response, & StatusCode for Any Application Error
+func handleErrors(err error, w http.ResponseWriter, r *http.Request) {
+  //
 
 }
