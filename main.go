@@ -1,208 +1,420 @@
 package main
 
 import (
-  "errors"
-  "net/http"
-  "encoding/json"
-  "io/ioutil"
-  "github.com/julienschmidt/httprouter"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/julienschmidt/httprouter"
+	"io/ioutil"
+	"net/http"
 )
-
 
 func main() {
 
-  router := httprouter.New()
+	router := httprouter.New()
 
-  router.Handler("POST", "/user", http.HandlerFunc(UserCreate))
-  router.Handler("GET", "/user", http.HandlerFunc(UserList))
-  router.Handler("GET", "/user/:userID", http.HandlerFunc(UserGet))
-  router.Handler("DELETE", "/user/:userID", http.HandlerFunc(UserDelete))
+	router.Handler("POST", "/user", http.HandlerFunc(UserCreate))
+	router.Handler("GET", "/user", http.HandlerFunc(UserList))
+	router.Handler("GET", "/user/:userID", http.HandlerFunc(UserGet))
+	router.Handler("DELETE", "/user/:userID", http.HandlerFunc(UserDelete))
 
+	router.Handler("POST", "/challenge", http.HandlerFunc(ChallengeEvaluate))
+	router.Handler("GET", "/challenge", http.HandlerFunc(ChallengeList))
 
-  http.ListenAndServe(":8080", router)
+	router.Handler("POST", "/resource", http.HandlerFunc(ResourceCreate))
+	router.Handler("GET", "/resource", http.HandlerFunc(ResourceList))
+	router.Handler("GET", "/resource/:ID", http.HandlerFunc(ResourceGet))
+	router.Handler("DELETE", "/resource/:ID", http.HandlerFunc(ResourceDelete))
+
+	router.Handler("POST", "/policy", http.HandlerFunc(PolicyCreate))
+	router.Handler("GET", "/policy", http.HandlerFunc(PolicyList))
+	router.Handler("GET", "/policy/:ID", http.HandlerFunc(PolicyGet))
+	router.Handler("PUT", "/policy/:ID", http.HandlerFunc(PolicyUpdate))
+	router.Handler("DELETE", "/policy/:ID", http.HandlerFunc(PolicyDelete))
+
+	router.Handler("POST", "/group", http.HandlerFunc(GroupCreate))
+	router.Handler("GET", "/group", http.HandlerFunc(GroupList))
+	router.Handler("GET", "/group/:ID", http.HandlerFunc(GroupGet))
+	router.Handler("PUT", "/group/:ID", http.HandlerFunc(GroupUpdate))
+	router.Handler("DELETE", "/group/:ID", http.HandlerFunc(GroupDelete))
+
+	http.ListenAndServe(":8080", router)
 
 }
-
 
 // POST /user/
 func UserCreate(w http.ResponseWriter, r *http.Request) {
 
-  // read and marshal body json into
-  var u User
-  var err error
-  var requestBody []byte
+	// read and marshal body json into
+	var u User
+	var err error
+	var requestBody []byte
 
-  requestBody, err = ioutil.ReadAll(r.Body)
+	requestBody, err = ioutil.ReadAll(r.Body)
 
-  // If Error for Unmarshaling JSON Body
-  if !json.Valid(requestBody) {
-    w.WriteHeader(400)
-    w.Header().Set("Content-Type", "application/ld+json")
-    w.Write([]byte(`{"error": "Invalid JSON Submitted"}`))
-    return
-  }
+	// If Error for Unmarshaling JSON Body
+	if !json.Valid(requestBody) {
+		w.WriteHeader(400)
+		w.Header().Set("Content-Type", "application/ld+json")
+		w.Write([]byte(`{"error": "Invalid JSON Submitted"}`))
+		return
+	}
 
-  err = json.Unmarshal(requestBody, &u)
+	err = json.Unmarshal(requestBody, &u)
 
-  if err != nil {
-    w.WriteHeader(400)
-    w.Header().Set("Content-Type", "application/ld+json")
-    w.Write([]byte(`{"error": "Failed to Unmarshal Request JSON"}`))
-    return
-  }
+	if err != nil {
+		w.WriteHeader(400)
+		w.Header().Set("Content-Type", "application/ld+json")
+		w.Write([]byte(`{"error": "Failed to Unmarshal Request JSON"}`))
+		return
+	}
 
-  err = u.Create()
+	err = u.Create()
 
-  if err == nil {
-    w.WriteHeader(201)
-    w.Header().Set("Content-Type", "application/ld+json")
-    w.Write([]byte(`{"created": {"@id": "` + u.Id + `"}}`))
-    return
-  }
+	if err == nil {
+		w.WriteHeader(201)
+		w.Header().Set("Content-Type", "application/ld+json")
+		w.Write([]byte(`{"created": {"@id": "` + u.Id + `"}}`))
+		return
+	}
 
-  // Error for when the User with u.Id Already Exists
-  if errors.Is(err, ErrDocumentExists) {
-    w.WriteHeader(400)
-    w.Header().Set("Content-Type", "application/ld+json")
-    w.Write([]byte(`{"error": "User Already Exists" ,"@id": "` + u.Id + `"}`))
-    return
-  }
+	// Error for when the User with u.Id Already Exists
+	if errors.Is(err, ErrDocumentExists) {
+		w.WriteHeader(400)
+		w.Header().Set("Content-Type", "application/ld+json")
+		w.Write([]byte(`{"error": "User Already Exists" ,"@id": "` + u.Id + `"}`))
+		return
+	}
 
-  // Unknown Error catch all
-  w.WriteHeader(500)
-  w.Header().Set("Content-Type", "application/ld+json")
-  w.Write([]byte(`{"error": "` + err.Error() + `"}`))
-  return
+	// Unknown Error catch all
+	w.WriteHeader(500)
+	w.Header().Set("Content-Type", "application/ld+json")
+	w.Write([]byte(`{"error": "` + err.Error() + `"}`))
+	return
 
 }
-
 
 // GET /user/
 func UserList(w http.ResponseWriter, r *http.Request) {
 
-  var err error
-  var userList []User
+	var err error
+	var userList []User
 
-  userList, err = listUsers()
+	userList, err = listUsers()
 
-  if err != nil {
-    return
-  }
+	if err != nil {
+		return
+	}
 
-  var responseBody []byte
-  responseBody, err = json.Marshal(userList)
+	var responseBody []byte
+	responseBody, err = json.Marshal(userList)
 
-  if err != nil {
-      return
-  }
+	if err != nil {
+		return
+	}
 
+	w.WriteHeader(200)
+	w.Header().Set("Content-Type", "application/ld+json")
+	w.Write(responseBody)
 
-  w.WriteHeader(200)
-  w.Header().Set("Content-Type", "application/ld+json")
-  w.Write(responseBody)
-
-  return
+	return
 }
-
 
 // GET /user/:userID
 func UserGet(w http.ResponseWriter, r *http.Request) {
-  var u User
-  var err error
+	var u User
+	var err error
 
-  // get the user id from the route
-  params := httprouter.ParamsFromContext(r.Context())
+	// get the user id from the route
+	params := httprouter.ParamsFromContext(r.Context())
 
-  u.Id = params.ByName("userID")
-  err = u.Get()
+	u.Id = params.ByName("userID")
+	err = u.Get()
 
-  if err != nil {
-    return
-  }
+	if err != nil {
+		return
+	}
 
-  responseBytes, err := json.Marshal(u)
+	responseBytes, err := json.Marshal(u)
 
-  if err != nil {
-    return
-  }
+	if err != nil {
+		return
+	}
 
-  w.WriteHeader(200)
-  w.Header().Set("Content-Type", "application/ld+json")
-  w.Write(responseBytes)
-  return
+	w.WriteHeader(200)
+	w.Header().Set("Content-Type", "application/ld+json")
+	w.Write(responseBytes)
+	return
 
 }
-
 
 // Delete /user/:userID
 func UserDelete(w http.ResponseWriter, r *http.Request) {
 
-  var deletedUser User
-  var err error
+	var deletedUser User
+	var err error
 
-  // get the user id from the route
-  params := httprouter.ParamsFromContext(r.Context())
+	// get the user id from the route
+	params := httprouter.ParamsFromContext(r.Context())
 
-  deletedUser.Id = params.ByName("userID")
-  err = deletedUser.Delete()
+	deletedUser.Id = params.ByName("userID")
+	err = deletedUser.Delete()
 
+	if err != nil {
+		return
+	}
 
-  if err != nil {
-    return
-  }
+	responseBytes, err := json.Marshal(deletedUser)
+	if err != nil {
+		return
+	}
 
-  responseBytes, err := json.Marshal(deletedUser)
-  if err != nil {
-    return
-  }
-
-  w.WriteHeader(200)
-  w.Header().Set("Content-Type", "application/ld+json")
-  w.Write(responseBytes)
-  return
+	w.WriteHeader(200)
+	w.Header().Set("Content-Type", "application/ld+json")
+	w.Write(responseBytes)
+	return
 
 }
 
+func ChallengeEvaluate(w http.ResponseWriter, r *http.Request) {
 
-func ChallengeCreate(w http.ResponseWriter, r *http.Request) {}
+	var c Challenge
+	var err error
+	var requestBody []byte
 
-func ChallengeList(w http.ResponseWriter, r *http.Request) {}
+	requestBody, err = ioutil.ReadAll(r.Body)
 
+	if err != nil {
+		w.WriteHeader(400)
+		fmt.Fprintf(w, `{"error": "%w"}`, err)
+		return
+	}
 
-func ResourceCreate(w http.Response, r *http.Request) {}
+	if err = json.Unmarshal(requestBody, &c); err != nil {
+		w.WriteHeader(400)
+		fmt.Fprintf(w, `{"error": "%w"}`, err)
+		return
+	}
 
-func ResourceGet(w http.Response, r *http.Request) {}
+	err = c.Evaluate()
+	if err != nil {
+		w.WriteHeader(400)
+		fmt.Fprintf(w, `{"error": "%w"}`, err)
+		return
+	}
 
-func ResourceDelete(w http.Response, r *http.Request) {}
+	if c.Granted {
+		w.WriteHeader(200)
+	} else {
+		w.WriteHeader(403)
+	}
 
-func ResourceList(w http.Response, r *http.Request) {}
+	fmt.Fprintf(w, `{"@id": "%s","granted": "%t"}`, c.Id, c.Granted)
+}
 
+func ChallengeList(w http.ResponseWriter, r *http.Request) {
 
+	var challengeList []Challenge
+	var responseBody []byte
+	var err error
 
-func PolicyCreate(w http.Response, r *http.Request) {}
+	w.Header().Set("Content-Type", "application/ld+json")
 
-func PolicyGet(w http.Response, r *http.Request) {}
+	challengeList, err = listChallenges()
 
-func PolicyUpdate(w http.Response, r *http.Request) {}
+	if err != nil {
+		w.WriteHeader(500)
+		fmt.Fprintf(w, `{"error": "%w"}`, err)
+		return
+	}
 
-func PolicyDelete(w http.Response, r *http.Request) {}
+	responseBody, err = json.Marshal(challengeList)
 
-func PolicyList(w http.Response, r *http.Request) {}
+	if err != nil {
+		w.WriteHeader(400)
+		fmt.Fprintf(w, `{"error": "%w"}`, err)
+		return
+	}
 
+	w.WriteHeader(200)
+	w.Write(responseBody)
 
-func GroupCreate(w http.Response, r *http.Request) {}
+}
 
-func GroupGet(w http.Response, r *http.Request) {}
+func ResourceCreate(w http.ResponseWriter, r *http.Request) {
 
-func GroupUpdate(w http.Response, r *http.Request) {}
+	// read and marshal body json into
+	var res Resource
+	var err error
+	var requestBody []byte
 
-func GroupDelete(w http.Response, r *http.Request) {}
+	requestBody, err = ioutil.ReadAll(r.Body)
 
-func GroupList(w http.Response, r *http.Request) {}
+	// If Error for Unmarshaling JSON Body
+	if !json.Valid(requestBody) {
+		w.WriteHeader(400)
+		w.Write([]byte(`{"error": "Invalid JSON Submitted"}`))
+		return
+	}
 
+	err = json.Unmarshal(requestBody, &res)
+
+	if err != nil {
+		w.WriteHeader(400)
+		w.Header().Set("Content-Type", "application/ld+json")
+		w.Write([]byte(`{"error": "Failed to Unmarshal Request JSON"}`))
+		return
+	}
+
+	err = res.Create()
+
+	if err == nil {
+		w.WriteHeader(201)
+		w.Header().Set("Content-Type", "application/ld+json")
+		w.Write([]byte(`{"created": {"@id": "` + res.Id + `"}}`))
+		return
+	}
+
+	// Error for when the User with u.Id Already Exists
+	if errors.Is(err, ErrDocumentExists) {
+		w.WriteHeader(400)
+		w.Header().Set("Content-Type", "application/ld+json")
+		w.Write([]byte(`{"error": "User Already Exists" ,"@id": "` + res.Id + `"}`))
+		return
+	}
+
+	// Unknown Error catch all
+	w.WriteHeader(500)
+	w.Header().Set("Content-Type", "application/ld+json")
+	w.Write([]byte(`{"error": "` + err.Error() + `"}`))
+	return
+
+}
+
+func ResourceGet(w http.ResponseWriter, r *http.Request) {}
+
+func ResourceDelete(w http.ResponseWriter, r *http.Request) {}
+
+func ResourceList(w http.ResponseWriter, r *http.Request) {}
+
+func PolicyCreate(w http.ResponseWriter, r *http.Request) {
+
+	// read and marshal body json into
+	var p Policy
+	var err error
+	var requestBody []byte
+
+	requestBody, err = ioutil.ReadAll(r.Body)
+
+	// If Error for Unmarshaling JSON Body
+	if !json.Valid(requestBody) {
+		w.WriteHeader(400)
+		w.Write([]byte(`{"error": "Invalid JSON Submitted"}`))
+		return
+	}
+
+	err = json.Unmarshal(requestBody, &r)
+
+	if err != nil {
+		w.WriteHeader(400)
+		w.Header().Set("Content-Type", "application/ld+json")
+		w.Write([]byte(`{"error": "Failed to Unmarshal Request JSON"}`))
+		return
+	}
+
+	err = p.Create()
+
+	if err == nil {
+		w.WriteHeader(201)
+		w.Header().Set("Content-Type", "application/ld+json")
+		w.Write([]byte(`{"created": {"@id": "` + p.Id + `"}}`))
+		return
+	}
+
+	// Error for when the User with u.Id Already Exists
+	if errors.Is(err, ErrDocumentExists) {
+		w.WriteHeader(400)
+		w.Header().Set("Content-Type", "application/ld+json")
+		w.Write([]byte(`{"error": "User Already Exists" ,"@id": "` + p.Id + `"}`))
+		return
+	}
+
+	// Unknown Error catch all
+	w.WriteHeader(500)
+	w.Header().Set("Content-Type", "application/ld+json")
+	w.Write([]byte(`{"error": "` + err.Error() + `"}`))
+	return
+
+}
+
+func PolicyGet(w http.ResponseWriter, r *http.Request) {}
+
+func PolicyUpdate(w http.ResponseWriter, r *http.Request) {}
+
+func PolicyDelete(w http.ResponseWriter, r *http.Request) {}
+
+func PolicyList(w http.ResponseWriter, r *http.Request) {}
+
+func GroupCreate(w http.ResponseWriter, r *http.Request) {
+
+	// read and marshal body json into
+	var g Group
+	var err error
+	var requestBody []byte
+
+	requestBody, err = ioutil.ReadAll(r.Body)
+
+	// If Error for Unmarshaling JSON Body
+	if !json.Valid(requestBody) {
+		w.WriteHeader(400)
+		w.Write([]byte(`{"error": "Invalid JSON Submitted"}`))
+		return
+	}
+
+	err = json.Unmarshal(requestBody, &r)
+
+	if err != nil {
+		w.WriteHeader(400)
+		w.Header().Set("Content-Type", "application/ld+json")
+		w.Write([]byte(`{"error": "Failed to Unmarshal Request JSON"}`))
+		return
+	}
+
+	err = g.Create()
+
+	if err == nil {
+		w.WriteHeader(201)
+		w.Header().Set("Content-Type", "application/ld+json")
+		w.Write([]byte(`{"created": {"@id": "` + g.Id + `"}}`))
+		return
+	}
+
+	// Error for when the User with u.Id Already Exists
+	if errors.Is(err, ErrDocumentExists) {
+		w.WriteHeader(400)
+		w.Header().Set("Content-Type", "application/ld+json")
+		w.Write([]byte(`{"error": "User Already Exists" ,"@id": "` + g.Id + `"}`))
+		return
+	}
+
+	// Unknown Error catch all
+	w.WriteHeader(500)
+	w.Header().Set("Content-Type", "application/ld+json")
+	w.Write([]byte(`{"error": "` + err.Error() + `"}`))
+	return
+
+}
+
+func GroupGet(w http.ResponseWriter, r *http.Request) {}
+
+func GroupUpdate(w http.ResponseWriter, r *http.Request) {}
+
+func GroupDelete(w http.ResponseWriter, r *http.Request) {}
+
+func GroupList(w http.ResponseWriter, r *http.Request) {}
 
 // Write a Response, & StatusCode for Any Application Error
 func handleErrors(err error, w http.ResponseWriter, r *http.Request) {
-  //
+	//
 
 }
