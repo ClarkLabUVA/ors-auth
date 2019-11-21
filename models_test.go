@@ -2,10 +2,11 @@ package main
 
 import (
 	"testing"
+	"encoding/json"
 	//bson "go.mongodb.org/mongo-driver/bson"
 )
 
-func TestBasic(t *testing.T) {
+func TestBasicMongo(t *testing.T) {
 
 	// Basic CRUD Tests for User
 	t.Run("User", func(t *testing.T) {
@@ -332,6 +333,99 @@ func TestBasic(t *testing.T) {
 			t.Logf("INFO ListChallenges: %+v", clist)
 
 		})
+
+	})
+
+}
+
+func TestJSON(t *testing.T) {
+
+	t.Run("Unmarshal", func(t *testing.T){
+
+		t.Run("User", func(t *testing.T){
+
+			t.Run("Default", func(t *testing.T){
+				userBytes := []byte(`{"name": "Joe Schmoe", "email": "jschmoe@example.org", "is_admin": false}`)
+				var u User
+
+				err := json.Unmarshal(userBytes, &u)
+				if err != nil {
+					t.Fatalf("Error Unmarshaling Identifier")
+				}
+
+				t.Logf("UnmarshaledUser: %+v", u)
+
+			})
+
+			t.Run("InvalidEmail", func(t *testing.T){
+
+				userBytes := []byte(`{"name": "Joe Schmoe", "email": "jschmexample.org", "is_admin": false}`)
+				var u User
+				err := json.Unmarshal(userBytes, &u)
+				if err == nil {
+					t.Fatalf("ERROR: InvalidEmail \temail: %s", u.Email)
+				}
+
+				userBytes = []byte(`{"name": "Joe Schmoe", "email": "jschmexampleorg", "is_admin": false}`)
+				err = json.Unmarshal(userBytes, &u)
+				if err == nil {
+					t.Fatalf("ERROR: %s", err.Error())
+				}
+
+				userBytes = []byte(`{"name": "Joe Schmoe", "email": "jschm@exampleorg", "is_admin": false}`)
+				err = json.Unmarshal(userBytes, &u)
+				if err == nil {
+					t.Fatalf("ERROR: InvalidEmail \temail: %s", u.Email)
+				}
+
+
+				userBytes = []byte(`{"name": "Joe Schmoe", "email": "jschm@@example..org", "is_admin": false}`)
+				err = json.Unmarshal(userBytes, &u)
+				if err == nil {
+					t.Fatalf("ERROR: InvalidEmail \temail: %s", u.Email)
+				}
+
+			})
+
+			t.Run("Extra", func(t *testing.T){
+				userBytes := []byte(`{"name": "Joe Schmoe", "email": "jschmoe@example.org", "is_admin": false, "groups": ["g1", "g2"]}`)
+				var u User
+
+				err := json.Unmarshal(userBytes, &u)
+				if err != nil {
+					t.Fatalf("Error Unmarshaling Identifier")
+				}
+
+				if len(u.Groups)!= 0 {
+					t.Fatalf("ErrGroups Not Empty:  %+v", u.Groups)
+				}
+
+			})
+
+		})
+
+		t.Run("Group", func(t *testing.T){})
+
+		t.Run("Resource", func(t *testing.T){})
+
+		t.Run("Policy", func(t *testing.T){})
+
+		t.Run("Challenge", func(t *testing.T){})
+
+	})
+
+
+	t.Run("Marshal", func(t *testing.T){
+
+		t.Run("User", func(t *testing.T){})
+
+		t.Run("Group", func(t *testing.T){})
+
+		t.Run("Resource", func(t *testing.T){})
+
+		t.Run("Policy", func(t *testing.T){})
+
+		t.Run("Challenge", func(t *testing.T){})
 
 	})
 
