@@ -6,6 +6,10 @@ import (
 	"fmt"
 	"reflect"
 	"time"
+  "encoding/json"
+  "regexp"
+
+  "github.com/google/uuid"
 
 	bson "go.mongodb.org/mongo-driver/bson"
 	mongo "go.mongodb.org/mongo-driver/mongo"
@@ -17,12 +21,22 @@ var (
 	ErrMongoClient    = errors.New("MongoClientError")
 	ErrMongoQuery     = errors.New("MongoQueryError")
 	ErrMongoDecode    = errors.New("MongoDecodeError")
+  ErrModelValidation = errors.New("ModelValidationError")
+  ErrModelMissingField = errors.New("MissingRequiredField")
 )
 
 var (
 	MongoURI        = "mongodb://mongoadmin:mongosecret@localhost:27017"
 	MongoDatabase   = "test"
 	MongoCollection = "auth"
+)
+
+const (
+    TypeGroup = "Group"
+    TypeUser = "Person"
+    TypeResource = "Resource"
+    TypePolicy = "Policy"
+    TypeChallenge = "Challenge"
 )
 
 func connectMongo() (ctx context.Context, cancel context.CancelFunc, client *mongo.Client, err error) {
@@ -106,6 +120,7 @@ func deleteOne(Id string) (b []byte, err error) {
 	return
 }
 
+
 type User struct {
 	Id      string   `json:"@id" bson:"@id"`
 	Type    string   `json:"@type" bson:"@type"`
@@ -114,6 +129,52 @@ type User struct {
 	IsAdmin bool     `json:"is_admin" bson:"is_admin"`
 	Groups  []string `json:"groups" bson:"groups"`
 	Session string   `json:"session, omitempty" bson:"session"`
+}
+
+
+func (u User) MarshalJSON() ([]byte, error) {
+
+  return nil, nil
+}
+
+
+func (u *User) UnmarshalJSON(data []byte) error {
+  var err error
+
+  aux := struct{
+    Name  string  `json:"name"`
+    Email string  `json:"email"`
+    IsAdmin bool  `json:"is_admin"`
+  }{}
+
+  if err = json.Unmarshal(data, &aux); err != nil {
+    return fmt.Errorf("%w: Failed To Unmarshal Subset", ErrModelValidation)
+  }
+
+  // validate name
+  if aux.Name == "" {
+    return fmt.Errorf("%w: User missing Name", ErrModelMissingField)
+  }
+
+  // validate email
+  matched, err := regexp.MatchString(`^[a-zA-Z0-9-_]*@[a-zA-Z]*\.[a-zA-Z]*$`, aux.Email)
+  if err != nil || !matched {
+    return fmt.Errorf("%w: Invalid Email", ErrModelValidation)
+  }
+
+
+  userId, err := uuid.NewUUID()
+  if err != nil {
+    return fmt.Errorf("%w: Failed to Create ID %s", ErrModelMissingField, err.Error())
+  }
+
+  u.Id = userId.String()
+  u.Type = TypeUser
+  u.Name = aux.Name
+  u.Email = aux.Email
+  u.IsAdmin = aux.IsAdmin
+
+  return err
 }
 
 func listUsers() (u []User, err error) {
@@ -208,6 +269,41 @@ type Group struct {
 	Name    string   `json:"name" bson:"name"`
 	Admin   string   `json:"admin" bson:"admin"`
 	Members []string `json:"members" bson:"members"`
+}
+
+func (g *Group)MarshalJSON() ([]byte, error) {
+
+  return nil, nil
+}
+
+func (g *Group)UnmarshalJSON(data []byte) (error) {
+  var err error
+
+  aux := struct{
+    Name  string `json:"name"`
+    Admin string  `json:"admin"`
+    Members []string `json:"members"`
+  }{}
+
+  err = json.Unmarshal(data, &aux)
+  if err != nil {
+    return error
+  }
+
+  g.Name = aux.Name
+  g.Admin = aux.Admin
+  g.Members = aux.Members
+
+  g.Type = TypeGroup
+
+  groupId, err := uuid.NewUUID()
+  if err != nil {
+    return fmt.Errorf("%w: Failed to Create ID %s", ErrModelMissingField, err.Error())
+  }
+
+  g.Id = userId.String()
+
+  return err
 }
 
 func listGroups() (g []Group, err error) {
@@ -575,8 +671,9 @@ func (p *Policy) Delete() error {
 
 	err = bson.Unmarshal(b, &p)
 	return err
-
 }
+
+
 
 type Challenge struct {
 	Id        string    `json:"@id" bson:"@id"`
@@ -588,6 +685,46 @@ type Challenge struct {
 	Issuer    string    `json:"issuer" bson:"issuer"`
 	Granted   bool      `json:"granted" bson:"granted"`
 }
+
+func (c Challenge) MarshalJSON() ([]byte, error) {
+
+  return nil, nil
+}
+
+func (c *Challenge) UnmarshalJSON(data []byte) (error) {
+  var err error
+
+  type Alias Challenge
+  aux := struct{
+    	Type      string    `json:"@type" bson:"@type"`
+    	Time      time.Time `json:"time" bson:"time"`
+    	Granted   bool      `json:"granted" bson:"granted"`
+      *Alias
+  }{
+    Alias: (*Alias)(c),
+ }
+  err = json.Unmarshal(data, &aux)
+
+  if err != nil {
+    return err
+  }
+
+
+  challengeId, err := uuid.NewUUID()
+
+  if err != nil {
+    return err
+  }
+
+  c.Id = challengeId.String()
+
+  c.Type = TypeChallenge
+  c.Time = time.Now()
+  c.Granted = false
+
+  return nil
+}
+
 
 func (c *Challenge) Evaluate() (err error) {
 
@@ -686,6 +823,7 @@ func listChallenges() (c []Challenge, err error) {
 	return
 
 }
+
 
 func errDocExists(err error) bool {
 
