@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+  "bytes"
+  //"strings"
 	"reflect"
 	"time"
   "encoding/json"
@@ -21,8 +23,11 @@ var (
 	ErrMongoClient    = errors.New("MongoClientError")
 	ErrMongoQuery     = errors.New("MongoQueryError")
 	ErrMongoDecode    = errors.New("MongoDecodeError")
-  ErrModelValidation = errors.New("ModelValidationError")
-  ErrModelMissingField = errors.New("MissingRequiredField")
+  ErrModelFieldValidation = errors.New("ErrorModelFieldValidation")
+  ErrModelMissingField = errors.New("ErrorModelMissingRequiredField")
+  ErrJSONUnmarshal = errors.New("ErrorParsingJSON")
+  ErrUUID = errors.New("ErrorCreatingUUID")
+  ErrRegex = errors.New("ErrorRunningRegex")
 )
 
 var (
@@ -31,7 +36,12 @@ var (
 	MongoCollection = "auth"
 )
 
-const (
+var (
+  ORSURI = "http://ors.uvadcos.io/"
+
+)
+
+const   (
     TypeGroup = "Group"
     TypeUser = "Person"
     TypeResource = "Resource"
@@ -128,13 +138,55 @@ type User struct {
 	Email   string   `json:"email" bson:"email"`
 	IsAdmin bool     `json:"is_admin" bson:"is_admin"`
 	Groups  []string `json:"groups" bson:"groups"`
-	Session string   `json:"session, omitempty" bson:"session"`
+	Session string   `json:"session" bson:"session"`
 }
 
 
 func (u User) MarshalJSON() ([]byte, error) {
 
-  return nil, nil
+  var userBuf bytes.Buffer
+  var err error
+
+  // open quotes
+  userBuf.WriteString(`{`)
+
+  // write out user id as full http
+  userBuf.WriteString(fmt.Sprintf(`"@id": "%suser/%s"`, ORSURI, u.Id))
+  userBuf.WriteString(`,`)
+
+  // write context
+  userBuf.WriteString(`"@context": {"@base": "http://schema.org/"}`)
+  userBuf.WriteString(`,`)
+
+  // write name
+  userBuf.WriteString(fmt.Sprintf(`"name": "%s"`, u.Name))
+  userBuf.WriteString(`,`)
+
+  // write email
+  userBuf.WriteString(fmt.Sprintf(`"name": "%s"`, u.Email))
+  userBuf.WriteString(`,`)
+
+  // groups
+  userBuf.WriteString(`"memberOf": [`)
+
+  if len(u.Groups) != 0 {
+    for i, g := range u.Groups {
+      userBuf.WriteString(fmt.Sprintf(`"%sgroup/%s"`, ORSURI, g))
+
+      if i != len(u.Groups)-1 {
+        userBuf.WriteString(`, `)
+      }
+    }
+
+  }
+  userBuf.WriteString(`]`)
+
+
+  // close quote
+  userBuf.WriteString(`}`)
+
+  out := userBuf.Bytes()
+  return out, err
 }
 
 
@@ -148,7 +200,7 @@ func (u *User) UnmarshalJSON(data []byte) error {
   }{}
 
   if err = json.Unmarshal(data, &aux); err != nil {
-    return fmt.Errorf("%w: Failed To Unmarshal Subset", ErrModelValidation)
+    return fmt.Errorf("%w: %s", ErrJSONUnmarshal, err.Error())
   }
 
   // validate name
@@ -157,15 +209,23 @@ func (u *User) UnmarshalJSON(data []byte) error {
   }
 
   // validate email
+  if aux.Email == "" {
+    return fmt.Errorf("%w: User missing Email", ErrModelMissingField)
+  }
+
   matched, err := regexp.MatchString(`^[a-zA-Z0-9-_]*@[a-zA-Z]*\.[a-zA-Z]*$`, aux.Email)
-  if err != nil || !matched {
-    return fmt.Errorf("%w: Invalid Email", ErrModelValidation)
+  if err != nil {
+    return fmt.Errorf("%w: %s", ErrRegex, err.Error())
+  }
+
+  if !matched {
+    return fmt.Errorf("%w: Invalid Email %s", ErrModelFieldValidation, aux.Email)
   }
 
 
   userId, err := uuid.NewUUID()
   if err != nil {
-    return fmt.Errorf("%w: Failed to Create ID %s", ErrModelMissingField, err.Error())
+    return fmt.Errorf("%w: %s", ErrUUID, err.Error())
   }
 
   u.Id = userId.String()
@@ -176,6 +236,7 @@ func (u *User) UnmarshalJSON(data []byte) error {
 
   return err
 }
+
 
 func listUsers() (u []User, err error) {
 
@@ -271,7 +332,49 @@ type Group struct {
 	Members []string `json:"members" bson:"members"`
 }
 
-func (g *Group)MarshalJSON() ([]byte, error) {
+func (g Group)MarshalJSON() ([]byte, error) {
+
+  var groupBuf bytes.Buffer
+  var err error
+
+  // open quotes
+  groupBuf.WriteString(`{`)
+
+  // write context
+  groupBuf.WriteString(`"@context": {"@base": "http://schema.org/"}, "@type": "Organization", `)
+
+  // write out user id as full http
+  groupBuf.WriteString(fmt.Sprintf(`"@id": "%sgroup/%s", `, ORSURI, g.Id))
+
+  // write name
+  groupBuf.WriteString(fmt.Sprintf(`"name": "%s", `, g.Name))
+
+	// write admin
+  groupBuf.WriteString(fmt.Sprintf(`"admin": "%s", `, g.Admin))
+  groupBuf.WriteString(`,`)
+
+  // write members
+  groupBuf.WriteString(`"member": [`)
+
+  if len(g.Members) != 0 {
+    for i, mem := range g.Members {
+      groupBuf.WriteString(fmt.Sprintf(`"%suser/%s"`, ORSURI, mem))
+
+      if i != len(g.Members)-1 {
+        groupBuf.WriteString(`, `)
+      }
+    }
+  }
+  groupBuf.WriteString(`]`)
+
+
+  // close quote
+  groupBuf.WriteString(`}`)
+
+  out := groupBuf.Bytes()
+  return out, err
+
+
 
   return nil, nil
 }
@@ -287,21 +390,26 @@ func (g *Group)UnmarshalJSON(data []byte) (error) {
 
   err = json.Unmarshal(data, &aux)
   if err != nil {
-    return error
+    return fmt.Errorf("%w: %s", ErrJSONUnmarshal, err.Error())
   }
 
-  g.Name = aux.Name
-  g.Admin = aux.Admin
-  g.Members = aux.Members
-
-  g.Type = TypeGroup
 
   groupId, err := uuid.NewUUID()
   if err != nil {
-    return fmt.Errorf("%w: Failed to Create ID %s", ErrModelMissingField, err.Error())
+    return fmt.Errorf("%w: %s", ErrUUID, err.Error())
   }
 
-  g.Id = userId.String()
+  // validate name
+  if aux.Name == "" {
+    return fmt.Errorf("%w: Group missing Name", ErrModelMissingField)
+  }
+
+
+  g.Id = groupId.String()
+  g.Name = aux.Name
+  g.Admin = aux.Admin
+  g.Members = aux.Members
+  g.Type = TypeGroup
 
   return err
 }
