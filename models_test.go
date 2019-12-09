@@ -387,7 +387,7 @@ func TestJSON(t *testing.T) {
 
 			})
 
-			t.Run("Extra", func(t *testing.T){
+			t.Run("ExtraFields", func(t *testing.T){
 				userBytes := []byte(`{"name": "Joe Schmoe", "email": "jschmoe@example.org", "is_admin": false, "groups": ["g1", "g2"]}`)
 				var u User
 
@@ -417,7 +417,25 @@ func TestJSON(t *testing.T) {
 
 	t.Run("Marshal", func(t *testing.T){
 
-		t.Run("User", func(t *testing.T){})
+		t.Run("User", func(t *testing.T){
+			u := User{
+				Id: "max",
+				Email: "mlev@example.org",
+				Name: "maxwell",
+				Groups: []string{"LevinsonFam", "Bagel Enthusiast"},
+				IsAdmin: false,
+				Session: "abcd",
+			}
+			userJSON, err := json.Marshal(u)
+
+			if err != nil {
+				t.Fatalf("ERROR: %s", err.Error())
+			}
+
+			t.Logf("MarshaledUser: %s", string(userJSON))
+
+
+		})
 
 		t.Run("Group", func(t *testing.T){})
 
