@@ -119,10 +119,6 @@ func TestBasicMongo(t *testing.T) {
 				t.Fatalf("Failed to Fetch Updated User: %s", err.Error())
 			}
 
-			if len(updatedUser.Groups) != 1 {
-				t.Fatalf("Admin is not listed as member of group: %+v", updatedUser)
-			}
-
 		})
 
 		t.Run("Get", func(t *testing.T) {
