@@ -342,18 +342,15 @@ func (g Group) MarshalJSON() ([]byte, error) {
 
 	// write admin
 	groupBuf.WriteString(fmt.Sprintf(`"admin": "%s", `, g.Admin))
-	groupBuf.WriteString(`,`)
 
 	// write members
 	groupBuf.WriteString(`"member": [`)
 
-	if len(g.Members) != 0 {
-		for i, mem := range g.Members {
-			groupBuf.WriteString(fmt.Sprintf(`"%suser/%s"`, ORSURI, mem))
+	for i, mem := range g.Members {
+		groupBuf.WriteString(fmt.Sprintf(`"%suser/%s"`, ORSURI, mem))
 
-			if i != len(g.Members)-1 {
-				groupBuf.WriteString(`, `)
-			}
+		if i != len(g.Members)-1 {
+			groupBuf.WriteString(`, `)
 		}
 	}
 	groupBuf.WriteString(`]`)
