@@ -808,10 +808,10 @@ func (c Challenge) MarshalJSON() ([]byte, error) {
 
 	// write time
 	jsonTime, _ := c.Time.MarshalJSON()
-	buf.WriteString(fmt.Sprintf(`"time": "%s", `, string(jsonTime)))
+	buf.WriteString(fmt.Sprintf(`"time": %s, `, string(jsonTime)))
 
 	// write granted
-	buf.WriteString(fmt.Sprintf(`"granted": "%t" }`, c.Granted))
+	buf.WriteString(fmt.Sprintf(`"granted": %t }`, c.Granted))
 
 	out := buf.Bytes()
 	return out, err
