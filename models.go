@@ -1,17 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
-  "bytes"
-  //"strings"
+	//"strings"
+	"encoding/json"
 	"reflect"
+	"regexp"
 	"time"
-  "encoding/json"
-  "regexp"
 
-  "github.com/google/uuid"
+	"github.com/google/uuid"
 
 	bson "go.mongodb.org/mongo-driver/bson"
 	mongo "go.mongodb.org/mongo-driver/mongo"
@@ -19,15 +19,15 @@ import (
 )
 
 var (
-	ErrDocumentExists = errors.New("DocumentExists")
-	ErrMongoClient    = errors.New("MongoClientError")
-	ErrMongoQuery     = errors.New("MongoQueryError")
-	ErrMongoDecode    = errors.New("MongoDecodeError")
-  ErrModelFieldValidation = errors.New("ErrorModelFieldValidation")
-  ErrModelMissingField = errors.New("ErrorModelMissingRequiredField")
-  ErrJSONUnmarshal = errors.New("ErrorParsingJSON")
-  ErrUUID = errors.New("ErrorCreatingUUID")
-  ErrRegex = errors.New("ErrorRunningRegex")
+	ErrDocumentExists       = errors.New("DocumentExists")
+	ErrMongoClient          = errors.New("MongoClientError")
+	ErrMongoQuery           = errors.New("MongoQueryError")
+	ErrMongoDecode          = errors.New("MongoDecodeError")
+	ErrModelFieldValidation = errors.New("ErrorModelFieldValidation")
+	ErrModelMissingField    = errors.New("ErrorModelMissingRequiredField")
+	ErrJSONUnmarshal        = errors.New("ErrorParsingJSON")
+	ErrUUID                 = errors.New("ErrorCreatingUUID")
+	ErrRegex                = errors.New("ErrorRunningRegex")
 )
 
 var (
@@ -37,16 +37,15 @@ var (
 )
 
 var (
-  ORSURI = "http://ors.uvadcos.io/"
-
+	ORSURI = "http://ors.uvadcos.io/"
 )
 
-const   (
-    TypeGroup = "Group"
-    TypeUser = "Person"
-    TypeResource = "Resource"
-    TypePolicy = "Policy"
-    TypeChallenge = "Challenge"
+const (
+	TypeGroup     = "Group"
+	TypeUser      = "Person"
+	TypeResource  = "Resource"
+	TypePolicy    = "Policy"
+	TypeChallenge = "Challenge"
 )
 
 func connectMongo() (ctx context.Context, cancel context.CancelFunc, client *mongo.Client, err error) {
@@ -130,7 +129,6 @@ func deleteOne(Id string) (b []byte, err error) {
 	return
 }
 
-
 type User struct {
 	Id      string   `json:"@id" bson:"@id"`
 	Type    string   `json:"@type" bson:"@type"`
@@ -141,102 +139,97 @@ type User struct {
 	Session string   `json:"session" bson:"session"`
 }
 
-
 func (u User) MarshalJSON() ([]byte, error) {
 
-  var userBuf bytes.Buffer
-  var err error
+	var userBuf bytes.Buffer
+	var err error
 
-  // open quotes
-  userBuf.WriteString(`{`)
+	// open quotes
+	userBuf.WriteString(`{`)
 
-  // write out user id as full http
-  userBuf.WriteString(fmt.Sprintf(`"@id": "%suser/%s"`, ORSURI, u.Id))
-  userBuf.WriteString(`,`)
+	// write out user id as full http
+	userBuf.WriteString(fmt.Sprintf(`"@id": "%suser/%s"`, ORSURI, u.Id))
+	userBuf.WriteString(`,`)
 
-  // write context
-  userBuf.WriteString(`"@context": {"@base": "http://schema.org/"}`)
-  userBuf.WriteString(`,`)
+	// write context
+	userBuf.WriteString(`"@context": {"@base": "http://schema.org/"}`)
+	userBuf.WriteString(`,`)
 
-  // write name
-  userBuf.WriteString(fmt.Sprintf(`"name": "%s"`, u.Name))
-  userBuf.WriteString(`,`)
+	// write name
+	userBuf.WriteString(fmt.Sprintf(`"name": "%s"`, u.Name))
+	userBuf.WriteString(`,`)
 
-  // write email
-  userBuf.WriteString(fmt.Sprintf(`"name": "%s"`, u.Email))
-  userBuf.WriteString(`,`)
+	// write email
+	userBuf.WriteString(fmt.Sprintf(`"name": "%s"`, u.Email))
+	userBuf.WriteString(`,`)
 
-  // groups
-  userBuf.WriteString(`"memberOf": [`)
+	// groups
+	userBuf.WriteString(`"memberOf": [`)
 
-  if len(u.Groups) != 0 {
-    for i, g := range u.Groups {
-      userBuf.WriteString(fmt.Sprintf(`"%sgroup/%s"`, ORSURI, g))
+	if len(u.Groups) != 0 {
+		for i, g := range u.Groups {
+			userBuf.WriteString(fmt.Sprintf(`"%sgroup/%s"`, ORSURI, g))
 
-      if i != len(u.Groups)-1 {
-        userBuf.WriteString(`, `)
-      }
-    }
+			if i != len(u.Groups)-1 {
+				userBuf.WriteString(`, `)
+			}
+		}
 
-  }
-  userBuf.WriteString(`]`)
+	}
+	userBuf.WriteString(`]`)
 
+	// close quote
+	userBuf.WriteString(`}`)
 
-  // close quote
-  userBuf.WriteString(`}`)
-
-  out := userBuf.Bytes()
-  return out, err
+	out := userBuf.Bytes()
+	return out, err
 }
-
 
 func (u *User) UnmarshalJSON(data []byte) error {
-  var err error
+	var err error
 
-  aux := struct{
-    Name  string  `json:"name"`
-    Email string  `json:"email"`
-    IsAdmin bool  `json:"is_admin"`
-  }{}
+	aux := struct {
+		Name    string `json:"name"`
+		Email   string `json:"email"`
+		IsAdmin bool   `json:"is_admin"`
+	}{}
 
-  if err = json.Unmarshal(data, &aux); err != nil {
-    return fmt.Errorf("%w: %s", ErrJSONUnmarshal, err.Error())
-  }
+	if err = json.Unmarshal(data, &aux); err != nil {
+		return fmt.Errorf("%w: %s", ErrJSONUnmarshal, err.Error())
+	}
 
-  // validate name
-  if aux.Name == "" {
-    return fmt.Errorf("%w: User missing Name", ErrModelMissingField)
-  }
+	// validate name
+	if aux.Name == "" {
+		return fmt.Errorf("%w: User missing Name", ErrModelMissingField)
+	}
 
-  // validate email
-  if aux.Email == "" {
-    return fmt.Errorf("%w: User missing Email", ErrModelMissingField)
-  }
+	// validate email
+	if aux.Email == "" {
+		return fmt.Errorf("%w: User missing Email", ErrModelMissingField)
+	}
 
-  matched, err := regexp.MatchString(`^[a-zA-Z0-9-_]*@[a-zA-Z]*\.[a-zA-Z]*$`, aux.Email)
-  if err != nil {
-    return fmt.Errorf("%w: %s", ErrRegex, err.Error())
-  }
+	matched, err := regexp.MatchString(`^[a-zA-Z0-9-_]*@[a-zA-Z]*\.[a-zA-Z]*$`, aux.Email)
+	if err != nil {
+		return fmt.Errorf("%w: %s", ErrRegex, err.Error())
+	}
 
-  if !matched {
-    return fmt.Errorf("%w: Invalid Email %s", ErrModelFieldValidation, aux.Email)
-  }
+	if !matched {
+		return fmt.Errorf("%w: Invalid Email %s", ErrModelFieldValidation, aux.Email)
+	}
 
+	userId, err := uuid.NewUUID()
+	if err != nil {
+		return fmt.Errorf("%w: %s", ErrUUID, err.Error())
+	}
 
-  userId, err := uuid.NewUUID()
-  if err != nil {
-    return fmt.Errorf("%w: %s", ErrUUID, err.Error())
-  }
+	u.Id = userId.String()
+	u.Type = TypeUser
+	u.Name = aux.Name
+	u.Email = aux.Email
+	u.IsAdmin = aux.IsAdmin
 
-  u.Id = userId.String()
-  u.Type = TypeUser
-  u.Name = aux.Name
-  u.Email = aux.Email
-  u.IsAdmin = aux.IsAdmin
-
-  return err
+	return err
 }
-
 
 func listUsers() (u []User, err error) {
 
@@ -322,8 +315,6 @@ func (u User) ListChallenges() (c []Challenge, err error) {
 	return
 }
 
-
-
 type Group struct {
 	Id      string   `json:"@id" bson:"@id"`
 	Type    string   `json:"@type" bson:"@type"`
@@ -332,86 +323,89 @@ type Group struct {
 	Members []string `json:"members" bson:"members"`
 }
 
-func (g Group)MarshalJSON() ([]byte, error) {
+func (g Group) MarshalJSON() ([]byte, error) {
 
-  var groupBuf bytes.Buffer
-  var err error
+	var groupBuf bytes.Buffer
+	var err error
 
-  // open quotes
-  groupBuf.WriteString(`{`)
+	// open quotes
+	groupBuf.WriteString(`{`)
 
-  // write context
-  groupBuf.WriteString(`"@context": {"@base": "http://schema.org/"}, "@type": "Organization", `)
+	// write context
+	groupBuf.WriteString(`"@context": {"@base": "http://schema.org/"}, "@type": "Organization", `)
 
-  // write out user id as full http
-  groupBuf.WriteString(fmt.Sprintf(`"@id": "%sgroup/%s", `, ORSURI, g.Id))
+	// write out user id as full http
+	groupBuf.WriteString(fmt.Sprintf(`"@id": "%sgroup/%s", `, ORSURI, g.Id))
 
-  // write name
-  groupBuf.WriteString(fmt.Sprintf(`"name": "%s", `, g.Name))
+	// write name
+	groupBuf.WriteString(fmt.Sprintf(`"name": "%s", `, g.Name))
 
 	// write admin
-  groupBuf.WriteString(fmt.Sprintf(`"admin": "%s", `, g.Admin))
-  groupBuf.WriteString(`,`)
+	groupBuf.WriteString(fmt.Sprintf(`"admin": "%s", `, g.Admin))
+	groupBuf.WriteString(`,`)
 
-  // write members
-  groupBuf.WriteString(`"member": [`)
+	// write members
+	groupBuf.WriteString(`"member": [`)
 
-  if len(g.Members) != 0 {
-    for i, mem := range g.Members {
-      groupBuf.WriteString(fmt.Sprintf(`"%suser/%s"`, ORSURI, mem))
+	if len(g.Members) != 0 {
+		for i, mem := range g.Members {
+			groupBuf.WriteString(fmt.Sprintf(`"%suser/%s"`, ORSURI, mem))
 
-      if i != len(g.Members)-1 {
-        groupBuf.WriteString(`, `)
-      }
-    }
-  }
-  groupBuf.WriteString(`]`)
+			if i != len(g.Members)-1 {
+				groupBuf.WriteString(`, `)
+			}
+		}
+	}
+	groupBuf.WriteString(`]`)
 
+	// close quote
+	groupBuf.WriteString(`}`)
 
-  // close quote
-  groupBuf.WriteString(`}`)
+	out := groupBuf.Bytes()
+	return out, err
 
-  out := groupBuf.Bytes()
-  return out, err
-
-
-
-  return nil, nil
+	return nil, nil
 }
 
-func (g *Group)UnmarshalJSON(data []byte) (error) {
-  var err error
+func (g *Group) UnmarshalJSON(data []byte) error {
+	var err error
 
-  aux := struct{
-    Name  string `json:"name"`
-    Admin string  `json:"admin"`
-    Members []string `json:"members"`
-  }{}
+	aux := struct {
+		Name    string   `json:"name"`
+		Admin   string   `json:"admin"`
+		Members []string `json:"members"`
+	}{}
 
-  err = json.Unmarshal(data, &aux)
-  if err != nil {
-    return fmt.Errorf("%w: %s", ErrJSONUnmarshal, err.Error())
-  }
+	err = json.Unmarshal(data, &aux)
+	if err != nil {
+		return fmt.Errorf("%w: %s", ErrJSONUnmarshal, err.Error())
+	}
 
+	groupId, err := uuid.NewUUID()
+	if err != nil {
+		return fmt.Errorf("%w: %s", ErrUUID, err.Error())
+	}
 
-  groupId, err := uuid.NewUUID()
-  if err != nil {
-    return fmt.Errorf("%w: %s", ErrUUID, err.Error())
-  }
+	// validate name
+	if aux.Name == "" {
+		return fmt.Errorf("%w: Group missing Name", ErrModelMissingField)
+	}
 
-  // validate name
-  if aux.Name == "" {
-    return fmt.Errorf("%w: Group missing Name", ErrModelMissingField)
-  }
+	// validate admin is not null
+	if aux.Admin == "" {
+		return fmt.Errorf("%w: Group missing Admin", ErrModelMissingField)
+	}
 
+	// add admin to members
+	aux.Members = append(aux.Members, aux.Admin)
 
-  g.Id = groupId.String()
-  g.Name = aux.Name
-  g.Admin = aux.Admin
-  g.Members = aux.Members
-  g.Type = TypeGroup
+	g.Id = groupId.String()
+	g.Name = aux.Name
+	g.Admin = aux.Admin
+	g.Members = aux.Members
+	g.Type = TypeGroup
 
-  return err
+	return err
 }
 
 func listGroups() (g []Group, err error) {
@@ -488,8 +482,8 @@ func (g Group) Create() (err error) {
 
 	// Update each member to add Groups
 	_, err = collection.UpdateMany(ctx,
-    // elem match
-		bson.D{{"@id", bson.D{{ "$elemMatch", bson.D{{"@id", g.Members}} }}  }},
+		// elem match
+		bson.D{{"@id", bson.D{{"$elemMatch", bson.D{{"@id", g.Members}}}}}},
 		bson.D{{"$addToSet", bson.D{{"groups", g.Id}}}},
 	)
 
@@ -781,8 +775,6 @@ func (p *Policy) Delete() error {
 	return err
 }
 
-
-
 type Challenge struct {
 	Id        string    `json:"@id" bson:"@id"`
 	Type      string    `json:"@type" bson:"@type"`
@@ -796,43 +788,41 @@ type Challenge struct {
 
 func (c Challenge) MarshalJSON() ([]byte, error) {
 
-  return nil, nil
+	return nil, nil
 }
 
-func (c *Challenge) UnmarshalJSON(data []byte) (error) {
-  var err error
+func (c *Challenge) UnmarshalJSON(data []byte) error {
+	var err error
 
-  type Alias Challenge
-  aux := struct{
-    	Type      string    `json:"@type" bson:"@type"`
-    	Time      time.Time `json:"time" bson:"time"`
-    	Granted   bool      `json:"granted" bson:"granted"`
-      *Alias
-  }{
-    Alias: (*Alias)(c),
- }
-  err = json.Unmarshal(data, &aux)
+	type Alias Challenge
+	aux := struct {
+		Type    string    `json:"@type" bson:"@type"`
+		Time    time.Time `json:"time" bson:"time"`
+		Granted bool      `json:"granted" bson:"granted"`
+		*Alias
+	}{
+		Alias: (*Alias)(c),
+	}
+	err = json.Unmarshal(data, &aux)
 
-  if err != nil {
-    return err
-  }
+	if err != nil {
+		return err
+	}
 
+	challengeId, err := uuid.NewUUID()
 
-  challengeId, err := uuid.NewUUID()
+	if err != nil {
+		return err
+	}
 
-  if err != nil {
-    return err
-  }
+	c.Id = challengeId.String()
 
-  c.Id = challengeId.String()
+	c.Type = TypeChallenge
+	c.Time = time.Now()
+	c.Granted = false
 
-  c.Type = TypeChallenge
-  c.Time = time.Now()
-  c.Granted = false
-
-  return nil
+	return nil
 }
-
 
 func (c *Challenge) Evaluate() (err error) {
 
@@ -931,7 +921,6 @@ func listChallenges() (c []Challenge, err error) {
 	return
 
 }
-
 
 func errDocExists(err error) bool {
 
