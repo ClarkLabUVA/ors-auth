@@ -363,8 +363,6 @@ func (g Group) MarshalJSON() ([]byte, error) {
 
 	out := groupBuf.Bytes()
 	return out, err
-
-	return nil, nil
 }
 
 func (g *Group) UnmarshalJSON(data []byte) error {
@@ -787,8 +785,36 @@ type Challenge struct {
 }
 
 func (c Challenge) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	var err error
 
-	return nil, nil
+	// open quotes
+	buf.WriteString(`{`)
+
+	// write context
+	buf.WriteString(`"@context": {"@base": "http://schema.org/", "principal": "http://schema.org/agent"}, "@type": "AuthorizeAction", `)
+
+	// write out challenge id as full url
+	buf.WriteString(fmt.Sprintf(`"@id": "%schallenge/%s", `, ORSURI, c.Id))
+
+	// write principal
+	buf.WriteString(fmt.Sprintf(`"principal": "%s", `, c.Principal))
+
+	// write resource
+	buf.WriteString(fmt.Sprintf(`"resource": "%s", `, c.Resource))
+
+	// write action
+	buf.WriteString(fmt.Sprintf(`"action": "%s", `, c.Action))
+
+	// write time
+	jsonTime, _ := c.Time.MarshalJSON()
+	buf.WriteString(fmt.Sprintf(`"time": "%s", `, string(jsonTime)))
+
+	// write granted
+	buf.WriteString(fmt.Sprintf(`"granted": "%t" }`, c.Granted))
+
+	out := buf.Bytes()
+	return out, err
 }
 
 func (c *Challenge) UnmarshalJSON(data []byte) error {
