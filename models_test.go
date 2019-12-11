@@ -1,8 +1,9 @@
 package main
 
 import (
-	"testing"
 	"encoding/json"
+	"testing"
+	"time"
 	//bson "go.mongodb.org/mongo-driver/bson"
 )
 
@@ -336,11 +337,11 @@ func TestBasicMongo(t *testing.T) {
 
 func TestJSON(t *testing.T) {
 
-	t.Run("Unmarshal", func(t *testing.T){
+	t.Run("Unmarshal", func(t *testing.T) {
 
-		t.Run("User", func(t *testing.T){
+		t.Run("User", func(t *testing.T) {
 
-			t.Run("Default", func(t *testing.T){
+			t.Run("Default", func(t *testing.T) {
 				userBytes := []byte(`{"name": "Joe Schmoe", "email": "jschmoe@example.org", "is_admin": false}`)
 				var u User
 
@@ -353,7 +354,7 @@ func TestJSON(t *testing.T) {
 
 			})
 
-			t.Run("InvalidEmail", func(t *testing.T){
+			t.Run("InvalidEmail", func(t *testing.T) {
 
 				userBytes := []byte(`{"name": "Joe Schmoe", "email": "jschmexample.org", "is_admin": false}`)
 				var u User
@@ -374,7 +375,6 @@ func TestJSON(t *testing.T) {
 					t.Fatalf("ERROR: InvalidEmail \temail: %s", u.Email)
 				}
 
-
 				userBytes = []byte(`{"name": "Joe Schmoe", "email": "jschm@@example..org", "is_admin": false}`)
 				err = json.Unmarshal(userBytes, &u)
 				if err == nil {
@@ -383,7 +383,7 @@ func TestJSON(t *testing.T) {
 
 			})
 
-			t.Run("ExtraFields", func(t *testing.T){
+			t.Run("ExtraFields", func(t *testing.T) {
 				userBytes := []byte(`{"name": "Joe Schmoe", "email": "jschmoe@example.org", "is_admin": false, "groups": ["g1", "g2"]}`)
 				var u User
 
@@ -392,7 +392,7 @@ func TestJSON(t *testing.T) {
 					t.Fatalf("Error Unmarshaling Identifier")
 				}
 
-				if len(u.Groups)!= 0 {
+				if len(u.Groups) != 0 {
 					t.Fatalf("ErrGroups Not Empty:  %+v", u.Groups)
 				}
 
@@ -400,25 +400,31 @@ func TestJSON(t *testing.T) {
 
 		})
 
-		t.Run("Group", func(t *testing.T){})
+		t.Run("Group", func(t *testing.T) {
+			t.Run("Valid", func(t *testing.T) {
+				//var g Group
+				//groupBytes := []byte(`{}`)
+				// assure admin is listed as member
+			})
+			t.Run("MissingName", func(t *testing.T) {})
+		})
 
-		t.Run("Resource", func(t *testing.T){})
+		t.Run("Resource", func(t *testing.T) {})
 
-		t.Run("Policy", func(t *testing.T){})
+		t.Run("Policy", func(t *testing.T) {})
 
-		t.Run("Challenge", func(t *testing.T){})
+		t.Run("Challenge", func(t *testing.T) {})
 
 	})
 
+	t.Run("Marshal", func(t *testing.T) {
 
-	t.Run("Marshal", func(t *testing.T){
-
-		t.Run("User", func(t *testing.T){
+		t.Run("User", func(t *testing.T) {
 			u := User{
-				Id: "max",
-				Email: "mlev@example.org",
-				Name: "maxwell",
-				Groups: []string{"LevinsonFam", "Bagel Enthusiast"},
+				Id:      "max",
+				Email:   "mlev@example.org",
+				Name:    "maxwell",
+				Groups:  []string{"LevinsonFam", "Bagel Enthusiast"},
 				IsAdmin: false,
 				Session: "abcd",
 			}
@@ -430,16 +436,85 @@ func TestJSON(t *testing.T) {
 
 			t.Logf("MarshaledUser: %s", string(userJSON))
 
+		})
+
+		t.Run("Group", func(t *testing.T) {
+			g := Group{
+				Id:      "test_group",
+				Type:    "Group",
+				Name:    "test_group",
+				Admin:   "max",
+				Members: []string{"u1", "u2"},
+			}
+
+			groupJSON, err := json.Marshal(g)
+
+			if err != nil {
+				t.Fatalf("ERROR: %s", err.Error())
+			}
+
+			t.Logf("MarshaledGroup: %s", string(groupJSON))
 
 		})
 
-		t.Run("Group", func(t *testing.T){})
+		t.Run("Resource", func(t *testing.T) {
+			r := Resource{
+				Id:    "resource1",
+				Type:  "resource",
+				Owner: "max",
+			}
 
-		t.Run("Resource", func(t *testing.T){})
+			resJSON, err := json.Marshal(r)
 
-		t.Run("Policy", func(t *testing.T){})
+			if err != nil {
+				t.Fatalf("ERROR: %s", err.Error())
+			}
 
-		t.Run("Challenge", func(t *testing.T){})
+			t.Logf("MarshaledResource: %s", string(resJSON))
+		})
+
+		t.Run("Policy", func(t *testing.T) {
+			p := Policy{
+				Id:        "p1",
+				Type:      "Policy",
+				Resource:  "r1",
+				Principal: []string{"max"},
+				Effect:    "Allow",
+				Action:    []string{"DeleteIdentifier"},
+				Issuer:    "ors:mds",
+			}
+
+			pJSON, err := json.Marshal(p)
+
+			if err != nil {
+				t.Fatalf("ERROR: %s", err.Error())
+			}
+
+			t.Logf("MarshaledGroup: %s", string(pJSON))
+
+		})
+
+		t.Run("Challenge", func(t *testing.T) {
+			c := Challenge{
+				Id:        "c1",
+				Type:      "Challenge",
+				Principal: "max",
+				Resource:  "r1",
+				Action:    "DeleteIdentifer",
+				Time:      time.Now(),
+				Issuer:    "ors:mds",
+				Granted:   true,
+			}
+
+			chalJSON, err := json.Marshal(c)
+
+			if err != nil {
+				t.Fatalf("ERROR: %s", err.Error())
+			}
+
+			t.Logf("MarshaledGroup: %s", string(chalJSON))
+
+		})
 
 	})
 
