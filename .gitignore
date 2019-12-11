@@ -1,3 +1,6 @@
 main
 ors-auth/*
+ors-auth
 notes.md
+*.cert
+*.key
