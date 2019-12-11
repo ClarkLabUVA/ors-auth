@@ -3,15 +3,50 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"github.com/julienschmidt/httprouter"
 	"io/ioutil"
+	"log"
 	"net/http"
 )
 
 func main() {
 
 	router := httprouter.New()
+
+	var globusClientID = flag.String("clientID", "", "Client ID from Globus Auth")
+	var globusClientSecret = flag.String("clientSecret", "", "Client Secret from Globus Auth")
+
+	var certPath = flag.String("cert", "", "Path to TLS Certificate")
+	var keyPath = flag.String("key", "", "Path to TLS Key")
+
+	var redirectURL = flag.String("redirect", "https://localhost:8080/oauth/token", "Redirect URL for Globus to Return to after access Code is granted")
+	var scopes = "urn:globus:auth:scope:auth.globus.org:view_identity_set+urn:globus:auth:scope:auth.globus.org:view_identities+openid+email+profile"
+
+	flag.Parse()
+
+	if *globusClientID == "" || *globusClientSecret == "" {
+		log.Fatalln("GlobusCredentials are  required")
+	}
+
+	if *certPath == "" || *keyPath == "" {
+		log.Fatalln("TLS certificate and Key are Required")
+	}
+
+	globusClient := GlobusAuthClient{
+		ClientID:     *globusClientID,
+		ClientSecret: *globusClientSecret,
+		RedirectURL:  *redirectURL,
+		Scopes:       scopes,
+	}
+
+	router.Handler("GET", "/oauth/login", http.HandlerFunc(globusClient.GrantHandler))
+	router.Handler("GET", "/oauth/token", http.HandlerFunc(globusClient.CodeHandler))
+	router.Handler("POST", "/oauth/revoke", http.HandlerFunc(globusClient.RevokeHandler))
+
+	//router.Handler("POST", "/oauth/register", http.HandlerFunc(globusClient.RegisterHandler))
+	//router.Handler("POST", "/oauth/refresh", http.HandlerFunc(globusClient.RefreshHandler))
 
 	router.Handler("POST", "/user", http.HandlerFunc(UserCreate))
 	router.Handler("GET", "/user", http.HandlerFunc(UserList))
@@ -38,7 +73,7 @@ func main() {
 	router.Handler("PUT", "/group/:ID", http.HandlerFunc(GroupUpdate))
 	router.Handler("DELETE", "/group/:ID", http.HandlerFunc(GroupDelete))
 
-	http.ListenAndServe(":8080", router)
+	log.Fatal(http.ListenAndServeTLS("0.0.0.0:8080", *certPath, *keyPath, router))
 
 }
 
