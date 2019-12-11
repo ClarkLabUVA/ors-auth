@@ -1,3 +1,8 @@
+*.DS_Store
+*.swp
+*.ipynb_checkpoints/
+bin/*
+bin/
 main
 ors-auth/*
 ors-auth
