@@ -9,3 +9,5 @@ ors-auth
 notes.md
 *.cert
 *.key
+auth
+Makefile
