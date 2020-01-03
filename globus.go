@@ -43,6 +43,7 @@ func (g GlobusAuthClient) GrantHandler(w http.ResponseWriter, r *http.Request) {
 func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("ContentType", "application/json")
+	response := make(map[string]interface{})
 
 	var code string
 	code = r.FormValue("code")
@@ -57,8 +58,13 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 	var token GlobusAccessToken
 	token, err = g.exchangeToken(code)
 
+	// TODO: (LowPriority) Handle different errors for token exchange failing
 	if err != nil {
-		w.Write([]byte(`{"message": "failed to exchange authorization code with globus", "error": "` + err.Error() + `"}`))
+		response["message"] = "failed to exchange authorization code with globus"
+		response["error"] = err
+
+		encodedResponse, _ := json.Marshal(response)
+		w.Write(encodedResponse)
 		w.WriteHeader(400)
 		return
 	}
@@ -67,13 +73,17 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 	var introspectedToken GlobusIntrospectedToken
 	introspectedToken, err = g.introspectToken(token.AccessToken)
 	if err != nil {
-		w.Write([]byte(`{"message": "Failed to Introspect Globus Token", "error": "` + err.Error() + `"}`))
+		response["message"] = "Failed to Introspect Globus Token"
+		response["error"] = err
+		response["globus_token"] = token
+
+		encodedResponse, _ := json.Marshal(response)
+		w.Write(encodedResponse)
 		w.WriteHeader(500)
 		return
 	}
 
 	//TODO: (LowestPriority) Add Support for Linked accounts identities
-
 	//var identitiesResponse GlobusIdentitiesResponse
 	//identitiesResponse, err = g.getIdentities( introspectedToken.IdentitiesSet )
 	//if err != nil {
@@ -85,13 +95,44 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 	// find the user in the record
 	user, err := queryUserEmail(introspectedToken.Email)
 
-	if err != nil {
-		w.Write([]byte(`{"email": "`+ introspectedToken.Email +`", "error": "User not registered"}`))
-		w.WriteHeader(400)
+	// if no user record is found, create a new record
+	if err.Is(err, mongo.ErrNilDocument) {
+
+		newUser, err := introspectedToken.registerUser()
+
+		if err != nil {
+			response["message"] = "Failed to register new user from token"
+			response["error"] = err
+			response["globus_token"] = introspectedToken
+
+			encodedResponse, _ := json.Marshal(response)
+			w.Write(encodedResponse)
+			w.WriteHeader(500)
+			return
+		}
+
+		response["globus_token"] = introspectedToken
+		response["user"] = newUser
+
+		encodedResponse, _ := json.Marshal(response)
+		w.Write(encodedResponse)
+		w.WriteHeader(201)
 		return
 	}
 
-	response := make(map[string]interface{})
+	// if error isn't no document found
+	if err != nil {
+
+		response["globus_token"] = introspectedToken
+		response["message"] = "error finding user record"
+		response["error"] = err
+
+		encodedResponse, _ := json.Marshal(response)
+		w.Write(encodedResponse)
+		w.WriteHeader(500)
+		return
+	}
+
 	response["user"] = user
 	response["access_token"] = token
 	response["introspected"] = introspectedToken
@@ -370,7 +411,7 @@ func (intro GlobusIntrospectedToken) registerUser() (u User, err error) {
 
 	err = u.Create()
 
-	// already exists
+	// TODO: (MidPriority) Handle Document Already Exists Error
 
 	return
 }
