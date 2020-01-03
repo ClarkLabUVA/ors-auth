@@ -49,6 +49,16 @@ func TestBasicMongo(t *testing.T) {
 
 		})
 
+		t.Run("QueryUserEmail", func(t *testing.T) {
+			u, err := queryUserEmail(TestUser.Email)
+			if err != nil {
+				t.Fatalf("QueryUserEmail: Failed to Find Test Error \n\t%w", err)
+			}
+
+			t.Logf("QueryUserEmail: Found Test User \n\t%+v", u)
+
+		})
+
 		t.Run("List", func(t *testing.T) {
 			userList, err := listUsers()
 
