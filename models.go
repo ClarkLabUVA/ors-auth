@@ -208,7 +208,7 @@ func (u *User) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("%w: User missing Email", ErrModelMissingField)
 	}
 
-	matched, err := regexp.MatchString(`^[a-zA-Z0-9-_]*@[a-zA-Z]*\.[a-zA-Z]*$`, aux.Email)
+	matched, err := regexp.MatchString(`^[a-zA-Z0-9-_.]*@[a-zA-Z]*\.[a-zA-Z]*$`, aux.Email)
 	if err != nil {
 		return fmt.Errorf("%w: %s", ErrRegex, err.Error())
 	}
