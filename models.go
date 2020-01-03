@@ -77,13 +77,9 @@ func insertOne(document interface{}) (err error) {
 	collection := client.Database(MongoDatabase).Collection(MongoCollection)
 
 	_, err = collection.InsertOne(ctx, document)
-	if err != nil {
-		if errDocExists(err) {
-			// rewrite error message
-			//err = fmt.Errorf("%w: %s", ErrUserExists, query["@id"])
-			err = ErrDocumentExists
-			return
-		}
+
+	if errDocExists(err) {
+		err = ErrDocumentExists
 	}
 
 	return
@@ -603,7 +599,6 @@ type Resource struct {
 func (r Resource) Create() error {
 
 	// prove owner exists
-
 	r.Type = "Resource"
 	return insertOne(r)
 }
