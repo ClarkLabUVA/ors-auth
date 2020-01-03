@@ -343,6 +343,16 @@ type GlobusIntrospectedToken struct {
 	IdentitiesSet []string `json:"identities_set"`
 }
 
+func (intro GlobusIntrospectedToken) findUser() (u User, err error) {
+	u, err = queryUserEmail(intro.Email)
+
+	if errors.Is(err, ErrMongoDecode) {
+		return
+	}
+
+	return
+}
+
 type GlobusIdentitiesResponse struct {
 	Identities []GlobusIdentity `json:"identities"`
 }
