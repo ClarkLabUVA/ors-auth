@@ -969,6 +969,8 @@ func listChallenges() (c []Challenge, err error) {
 
 }
 
+// Function to determine if an error from the mongo server is a MongoWriteError
+// where the document already exists and collides on at least one unique index
 func errDocExists(err error) bool {
 
 	// if the mongo operation returned a Write Exception
