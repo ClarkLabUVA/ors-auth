@@ -42,6 +42,8 @@ func (g GlobusAuthClient) GrantHandler(w http.ResponseWriter, r *http.Request) {
 
 func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 
+	w.Header().Set("ContentType", "application/json")
+
 	var code string
 	code = r.FormValue("code")
 
@@ -103,7 +105,6 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write(resp)
-	w.Header().Set("ContentType", "application/json")
 	w.WriteHeader(200)
 
 	return
