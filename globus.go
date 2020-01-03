@@ -3,11 +3,9 @@ package main
 import (
 	"errors"
 	"net/http"
-
 	"fmt"
 	"io/ioutil"
 	"strings"
-
 	"encoding/base64"
 	"encoding/json"
 	"github.com/google/uuid"
@@ -132,9 +130,6 @@ func (g GlobusAuthClient) RevokeHandler(w http.ResponseWriter, r *http.Request) 
 
 // TODO: (MidPriority) Write Handler for Refresh Token Grant
 func (g GlobusAuthClient) RefreshHandler(w http.ResponseWriter, r *http.Request) {}
-
-// TODO: (MidPriority) Write Handler for User Registration
-func (g GlobusAuthClient) RegisterHandler(w http.ResponseWriter, r *http.Request) {}
 
 func (g GlobusAuthClient) revokeToken(token string) (err error) {
 
