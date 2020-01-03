@@ -262,7 +262,7 @@ func listUsers() (u []User, err error) {
 
 func (u User) Create() (err error) {
 
-	u.Type = "User"
+	u.Type = TypeUser
 
 	err = insertOne(u)
 	return
@@ -276,6 +276,30 @@ func (u *User) Get() (err error) {
 	}
 
 	err = bson.Unmarshal(b, &u)
+	return
+}
+
+func queryUserEmail(email string) (u User, err error) {
+
+	ctx, cancel, client, err := connectMongo()
+	defer cancel()
+
+	if err != nil {
+		err = fmt.Errorf("%w: %s", ErrMongoClient, err.Error())
+		return
+	}
+
+	// connect to the user collection
+	collection := client.Database(MongoDatabase).Collection(MongoCollection)
+
+	query := bson.D{{"email", email}, {"@type", TypeUser}}
+	err = collection.FindOne(ctx, query).Decode(&u)
+
+	// if decoding error
+	if err != nil {
+		return
+	}
+
 	return
 }
 
