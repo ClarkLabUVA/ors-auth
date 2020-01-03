@@ -353,6 +353,26 @@ func (intro GlobusIntrospectedToken) findUser() (u User, err error) {
 	return
 }
 
+func (intro GlobusIntrospectedToken) registerUser() (u User, err error) {
+
+	userId, err := uuid.NewUUID()
+	if err != nil {
+		err = fmt.Errorf("%w: %w", ErrUUID, err)
+		return
+	}
+
+	u.Id = userId.String()
+	u.Name = intro.Name
+	u.Email = intro.Email
+	u.IsAdmin = false
+
+	err = u.Create()
+
+	// already exists
+
+	return
+}
+
 type GlobusIdentitiesResponse struct {
 	Identities []GlobusIdentity `json:"identities"`
 }
