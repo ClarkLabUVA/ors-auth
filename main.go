@@ -326,10 +326,13 @@ func ResourceCreate(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// TODO: (LowPriority) Write Handler for basic Get Resource by ID
 func ResourceGet(w http.ResponseWriter, r *http.Request) {}
 
+// TODO: (MidPriority) Write Handler for deletion by ID
 func ResourceDelete(w http.ResponseWriter, r *http.Request) {}
 
+// TODO: (LowPriority) Write Handler listing and filtering resources
 func ResourceList(w http.ResponseWriter, r *http.Request) {}
 
 func PolicyCreate(w http.ResponseWriter, r *http.Request) {
@@ -382,12 +385,16 @@ func PolicyCreate(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// TODO: (LowPriority) Write Handler GetPolicy
 func PolicyGet(w http.ResponseWriter, r *http.Request) {}
 
+// TODO: (LowPriority) Write Handler PolicyUpdate
 func PolicyUpdate(w http.ResponseWriter, r *http.Request) {}
 
+// TODO: (LowPriority) Write Handler PolicyDelete
 func PolicyDelete(w http.ResponseWriter, r *http.Request) {}
 
+// TODO: (LowPriority) Write Handler PolicyList; filter by principal or resource as query params
 func PolicyList(w http.ResponseWriter, r *http.Request) {}
 
 func GroupCreate(w http.ResponseWriter, r *http.Request) {
@@ -440,15 +447,19 @@ func GroupCreate(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// TODO: (LowPriority) Write Endpoint GroupGet
 func GroupGet(w http.ResponseWriter, r *http.Request) {}
 
+// TODO: (LowPriority) Write Endpoint GroupUpdate
 func GroupUpdate(w http.ResponseWriter, r *http.Request) {}
 
+// TODO: (LowPriority) Write Endpoint GroupDelete
 func GroupDelete(w http.ResponseWriter, r *http.Request) {}
 
+// TODO: (LowPriority) Write Endpoint GroupList
 func GroupList(w http.ResponseWriter, r *http.Request) {}
 
-// Write a Response, & StatusCode for Any Application Error
+// TODO: (LowPriority) Write a Generic Error Handler to return a JSON error
 func handleErrors(err error, w http.ResponseWriter, r *http.Request) {
 	//
 

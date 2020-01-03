@@ -74,7 +74,7 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Ignoring Linked accounts for now
+	//TODO: (LowestPriority) Add Support for Linked accounts identities
 
 	//var identitiesResponse GlobusIdentitiesResponse
 	//identitiesResponse, err = g.getIdentities( introspectedToken.IdentitiesSet )
@@ -130,9 +130,11 @@ func (g GlobusAuthClient) RevokeHandler(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(200)
 }
 
-//func (g GlobusAuthClient) RefreshHandler(w http.ResponseWriter, r *http.Request) {}
+// TODO: (MidPriority) Write Handler for Refresh Token Grant
+func (g GlobusAuthClient) RefreshHandler(w http.ResponseWriter, r *http.Request) {}
 
-//func (g GlobusAuthClient) RegisterHandler(w http.ResponseWriter, r *http.Request) {}
+// TODO: (MidPriority) Write Handler for User Registration
+func (g GlobusAuthClient) RegisterHandler(w http.ResponseWriter, r *http.Request) {}
 
 func (g GlobusAuthClient) revokeToken(token string) (err error) {
 
@@ -329,7 +331,7 @@ type GlobusAccessToken struct {
 	ExpiresIn      int    `json:"expires_in"`
 	TokenType      string `json:"token_type"`
 	RefreshToken   string `json:"refresh_token"`
-	//OIDToken       OIDToken  `json:"id_token"`
+	OIDToken       OIDToken  `json:"id_token"`
 	State string `json:"state"`
 }
 
