@@ -9,7 +9,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"github.com/google/uuid"
-
 )
 
 var (
@@ -83,7 +82,7 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//TODO: (LowestPriority) Add Support for Linked accounts identities
+	// TODO: (LowestPriority) Add Support for Linked accounts identities
 	//var identitiesResponse GlobusIdentitiesResponse
 	//identitiesResponse, err = g.getIdentities( introspectedToken.IdentitiesSet )
 	//if err != nil {
@@ -410,8 +409,6 @@ func (intro GlobusIntrospectedToken) registerUser() (u User, err error) {
 	u.IsAdmin = false
 
 	err = u.Create()
-
-	// TODO: (MidPriority) Handle Document Already Exists Error
 
 	return
 }
