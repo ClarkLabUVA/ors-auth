@@ -43,7 +43,7 @@ func main() {
 
 	router.Handler("GET", "/oauth/login", http.HandlerFunc(globusClient.GrantHandler))
 	router.Handler("GET", "/oauth/token", http.HandlerFunc(globusClient.CodeHandler))
-	router.Handler("POST", "/oauth/revoke", http.HandlerFunc(globusClient.RevokeHandler))
+	router.Handler("POST", "/oauth/logout", http.HandlerFunc(globusClient.RevokeHandler))
 
 	//router.Handler("POST", "/oauth/register", http.HandlerFunc(globusClient.RegisterHandler))
 	//router.Handler("POST", "/oauth/refresh", http.HandlerFunc(globusClient.RefreshHandler))
