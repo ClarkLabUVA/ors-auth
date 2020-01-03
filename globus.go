@@ -214,8 +214,10 @@ func (g GlobusAuthClient) exchangeToken(code string) (token GlobusAccessToken, e
 	respBody, _ := ioutil.ReadAll(resp.Body)
 
 	if resp.StatusCode != 200 {
-
-		err = fmt.Errorf("%w: %s", ErrGlobusExchange, string(respBody))
+		// TODO: Fix Error Formatting for Failed Token Exchange
+		// Error is produced when using an old token
+		// err = fmt.Errorf("%w: %w", ErrGlobusExchange, string(respBody))
+		err = ErrGlobusExchange
 		return
 	}
 

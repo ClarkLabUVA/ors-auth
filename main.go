@@ -100,7 +100,7 @@ func UserCreate(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(400)
 		w.Header().Set("Content-Type", "application/ld+json")
-		w.Write([]byte(`{"error": "Failed to Unmarshal Request JSON"}`))
+		w.Write([]byte(`{"message": "Failed to Unmarshal Request JSON", "error": "` + err.Error() + `"}`))
 		return
 	}
 
