@@ -81,8 +81,16 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 	//}
 
 	// find the user in the record
+	user, err := queryUserEmail(introspectedToken.Email)
+
+	if err != nil {
+		w.Write([]byte(`{"email": "`+ introspectedToken.Email +`", "error": "User not registered"}`))
+		w.WriteHeader(400)
+		return
+	}
 
 	response := make(map[string]interface{})
+	response["user"] = user
 	response["access_token"] = token
 	response["introspected"] = introspectedToken
 	//response["identities"] = identitiesResponse.Identities
