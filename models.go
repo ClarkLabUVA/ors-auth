@@ -614,7 +614,7 @@ type Resource struct {
 	Owner string `json:"owner" bson:"owner"`
 }
 
-func (r resource) ID() string {
+func (r Resource) ID() string {
 	return r.Id
 }
 
