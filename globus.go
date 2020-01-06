@@ -95,7 +95,7 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 	user, err := queryUserEmail(introspectedToken.Email)
 
 	// if no user record is found, create a new record
-	if err.Is(err, mongo.ErrNilDocument) {
+	if errors.Is(err, ErrNoDocument) {
 
 		newUser, err := introspectedToken.registerUser()
 
@@ -366,8 +366,7 @@ type GlobusAccessToken struct {
 	ExpiresIn      int    `json:"expires_in"`
 	TokenType      string `json:"token_type"`
 	RefreshToken   string `json:"refresh_token"`
-	OIDToken       OIDToken  `json:"id_token"`
-	State string `json:"state"`
+	State 				 string `json:"state"`
 }
 
 type GlobusIntrospectedToken struct {
