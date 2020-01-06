@@ -310,6 +310,7 @@ func (u *User) Delete() (err error) {
 	return
 }
 
+// TODO: (MidPriority) Add to User ListAccess()
 // Return Everything a has adequate permissions to access
 func (u User) ListAccess() (r []Resource, err error) {
 
@@ -319,21 +320,24 @@ func (u User) ListAccess() (r []Resource, err error) {
 	return
 }
 
-// Return all Resources
+// TODO: (MidPriority) Add to User ListOwned()
 func (u User) ListOwned() (r []Resource, err error) {
 	return
 }
 
+// TODO: (MidPriority) Add to User ListPolicies()
 // Return All Policies effecting this user
 func (u User) ListPolicies() (p []Policy, err error) {
 
 	return
 }
 
+// TODO: (MidPriority) Add to User ListChallenges()
 // Return All Challenges this User has made
 func (u User) ListChallenges() (c []Challenge, err error) {
 	return
 }
+
 
 type Group struct {
 	Id      string   `json:"@id" bson:"@id"`
