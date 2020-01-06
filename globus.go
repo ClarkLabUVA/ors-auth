@@ -119,6 +119,8 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	/*
+	// TODO: Return Error if Login isn't found
 	// if error isn't no document found
 	if err != nil {
 
@@ -131,6 +133,7 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
 		return
 	}
+	*/
 
 	response["user"] = user
 	response["access_token"] = token

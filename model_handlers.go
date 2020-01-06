@@ -90,3 +90,6 @@ func HandleMarshal(rec Record, w http.ResponseWriter) {
 	w.Write(responseBody)
 
 }
+
+// TODO: Handle Unmarshaling Related Errors
+func HandleUnmarshal(rec Record, w http.ResponseWriter) {}
