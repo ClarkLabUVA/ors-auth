@@ -61,7 +61,7 @@ func HandleCreate(rec Record, w http.ResponseWriter) error {
 
 	if err != nil {
 		// Handle Errors
-		if errDocExists(err) {
+		if errors.Is(err, ErrDocumentExists) {
 			w.WriteHeader(400)
 			w.Write([]byte(`{"@id": "`+ rec.ID() +`", "error": "Document Already Exists"}`))
 			return nil
