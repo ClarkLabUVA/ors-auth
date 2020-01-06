@@ -19,6 +19,7 @@ import (
 )
 
 var (
+	ErrNoDocument						= errors.New("NoDocumentFound")
 	ErrDocumentExists       = errors.New("DocumentExists")
 	ErrMongoClient          = errors.New("MongoClientError")
 	ErrMongoQuery           = errors.New("MongoQueryError")
@@ -133,6 +134,10 @@ type User struct {
 	IsAdmin bool     `json:"is_admin" bson:"is_admin"`
 	Groups  []string `json:"groups" bson:"groups"`
 	Session string   `json:"session" bson:"session"`
+}
+
+func (u User) ID() string {
+	return u.Id
 }
 
 func (u User) MarshalJSON() ([]byte, error) {
@@ -261,6 +266,11 @@ func (u User) Create() (err error) {
 	u.Type = TypeUser
 
 	err = insertOne(u)
+
+	if errDocExists(err) {
+		return ErrDocumentExists
+	}
+
 	return
 }
 
@@ -345,6 +355,10 @@ type Group struct {
 	Name    string   `json:"name" bson:"name"`
 	Admin   string   `json:"admin" bson:"admin"`
 	Members []string `json:"members" bson:"members"`
+}
+
+func (g Group) ID() string {
+	return g.Id
 }
 
 func (g Group) MarshalJSON() ([]byte, error) {
@@ -600,11 +614,22 @@ type Resource struct {
 	Owner string `json:"owner" bson:"owner"`
 }
 
+func (r resource) ID() string {
+	return r.Id
+}
+
 func (r Resource) Create() error {
 
 	// prove owner exists
 	r.Type = "Resource"
-	return insertOne(r)
+
+	err := insertOne(r)
+
+	if errDocExists(err) {
+		return ErrDocumentExists
+	}
+
+	return err
 }
 
 func (r *Resource) Get() error {
@@ -697,6 +722,10 @@ type Policy struct {
 	Effect    string   `json:"effect" bson:"effect"`
 	Action    []string `json:"action" bson:"action"`
 	Issuer    string   `json:"issuer" bson:"issuer"`
+}
+
+func (p Policy) ID() string {
+	return p.Id
 }
 
 func listPolicies() (p []Policy, err error) {
@@ -868,6 +897,10 @@ func (c *Challenge) UnmarshalJSON(data []byte) error {
 	c.Granted = false
 
 	return nil
+}
+
+func (c Challenge) ID() string {
+	return c.Id
 }
 
 func (c *Challenge) Evaluate() (err error) {
