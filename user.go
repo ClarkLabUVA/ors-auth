@@ -206,6 +206,31 @@ func queryUserEmail(email string) (u User, err error) {
 	return
 }
 
+func logoutUser(token string) (u User, err error) {
+
+	query := bson.D{{"access_token", token}, {"@type", TypeUser}}
+	update := bson.D{{"$set", bson.D{{"access_token", ""}}  }}
+
+	ctx, cancel, client, err := connectMongo()
+	defer cancel()
+
+	if err != nil {
+		return
+	}
+
+	collection := client.Database(MongoDatabase).Collection(MongoCollection)
+
+	res := collection.FindOneAndUpdate(ctx, query, update)
+
+	err = res.Decode(&u)
+
+	// TODO: Error Handling For Following Cases
+	// ErrNilDocument
+
+	return
+
+}
+
 func (u *User) Delete() (err error) {
 	var b []byte
 	b, err = deleteOne(u.Id)
