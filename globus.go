@@ -197,23 +197,27 @@ func (g GlobusAuthClient) revokeToken(token string) (err error) {
 
 	resp, err := client.Do(req)
 
+	// return error for issues with HTTP Request
 	if err != nil {
 		return fmt.Errorf("%w: %s", ErrHTTPRequest, err.Error())
 	}
 
 	// status code for successfull token revokation
-	if resp.StatusCode == 200 {
-		return nil
+	if resp.StatusCode != 200 {
+
+		// if attempt to revoke token has failed
+		responseJson, err := ioutil.ReadAll(resp.Body)
+
+		if err != nil {
+			return fmt.Errorf("%w: %s", ErrJSONUnmarshal, err.Error())
+		}
+
+		return fmt.Errorf("%w: %s", ErrGlobusRevoke, string(responseJson))
 	}
 
-	// if attempt to revoke token has failed
-	responseJson, err := ioutil.ReadAll(resp.Body)
+	// TODO: remove the active token from the user 
 
-	if err != nil {
-		return fmt.Errorf("%w: %s", ErrJSONUnmarshal, err.Error())
-	}
-
-	return fmt.Errorf("%w: %s", ErrGlobusRevoke, string(responseJson))
+	return nil
 
 }
 
