@@ -8,6 +8,113 @@ import (
 )
 
 
+type Resource struct {
+	Id    string `json:"@id" bson:"@id"`
+	Type  string `json:"@type" bson:"@type"`
+	Owner string `json:"owner" bson:"owner"`
+}
+
+func (r Resource) ID() string {
+	return r.Id
+}
+
+func (r Resource) Create() error {
+
+	// prove owner exists
+	r.Type = "Resource"
+
+	err := insertOne(r)
+
+	if errDocExists(err) {
+		return ErrDocumentExists
+	}
+
+	return err
+}
+
+func (r *Resource) Get() error {
+	var b []byte
+	var err error
+
+	b, err = findOne(r.Id)
+	if err != nil {
+		return err
+	}
+
+	err = bson.Unmarshal(b, &r)
+	return err
+
+}
+
+func (r *Resource) Delete() error {
+
+	var err error
+
+	// connect to the client
+	ctx, cancel, client, err := connectMongo()
+	defer cancel()
+
+	if err != nil {
+		return fmt.Errorf("%w: %s", ErrMongoClient, err.Error())
+	}
+
+	// connect to collection
+	collection := client.Database(MongoDatabase).Collection(MongoCollection)
+
+	// Query for the Resource, prove it exists
+	err = collection.FindOne(ctx, bson.D{{"@id", r.Id}}).Decode(&r)
+	if err != nil {
+		return fmt.Errorf("DeleteResourceError: Group Not Found: %w", err)
+	}
+
+	// Delete All Policies with Resource
+	_, err = collection.DeleteMany(ctx,
+		bson.D{{"resource", r.Id}, {"@type", "Policy"}},
+	)
+
+	if err != nil {
+		return fmt.Errorf("DeleteResourceError: Failed to Delete Policies: %w", err)
+	}
+
+	// Delete the Resource Object
+	_, err = collection.DeleteOne(ctx, bson.D{{"@id", r.Id}, {"@type", "Resource"}})
+
+	if err != nil {
+		return fmt.Errorf("DeleteResourceError: Failed to Delete Resource: %w", err)
+	}
+
+	return nil
+}
+
+func listResources() (r []Resource, err error) {
+
+	mongoCtx, cancel, client, err := connectMongo()
+	defer cancel()
+
+	if err != nil {
+		err = fmt.Errorf("%w: %s", ErrMongoClient, err.Error())
+		return
+	}
+
+	collection := client.Database(MongoDatabase).Collection(MongoCollection)
+
+	query := bson.D{{"@type", "Resource"}}
+	cur, err := collection.Find(mongoCtx, query, nil)
+	defer cur.Close(mongoCtx)
+	if err != nil {
+		return
+	}
+
+	err = cur.All(mongoCtx, &r)
+	if err != nil {
+		return
+	}
+
+	return
+
+}
+
+
 func ResourceCreate(w http.ResponseWriter, r *http.Request) {
 
 	// read and marshal body json into
