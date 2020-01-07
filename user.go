@@ -149,15 +149,24 @@ func listUsers() (u []User, err error) {
 
 }
 
-func (u User) Create() (err error) {
+func (u *User) Create() (err error) {
 
-	u.Type = TypeUser
+	ctx, cancel, client, err := connectMongo()
+	defer cancel()
 
-	err = insertOne(u)
-
-	if errDocExists(err) {
-		return ErrDocumentExists
+	if err != nil {
+		err = fmt.Errorf("%w: %s", ErrMongoClient, err.Error())
+		return
 	}
+
+	// connect to the user collection
+	collection := client.Database(MongoDatabase).Collection(MongoCollection)
+
+	_, err = collection.InsertOne(ctx, u)
+
+	// if errDocExists(err) {
+	//	err = ErrDocumentExists
+	// }
 
 	return
 }
