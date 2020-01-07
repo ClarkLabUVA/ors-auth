@@ -272,6 +272,7 @@ func (u User) ListChallenges() (c []Challenge, err error) {
 
 // POST /user/
 func UserCreate(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/ld+json")
 
 	// read and marshal body json into
 	var u User
@@ -280,11 +281,16 @@ func UserCreate(w http.ResponseWriter, r *http.Request) {
 
 	requestBody, err = ioutil.ReadAll(r.Body)
 
+	if err != nil {
+		w.WriteHeader(400)
+		fmt.Fprintf(w, `{"message": "Failed to " ,"error": "%s"}`, err.Error() )
+		return
+	}
+
 	// If Error for Unmarshaling JSON Body
 	if !json.Valid(requestBody) {
 		w.WriteHeader(400)
-		w.Header().Set("Content-Type", "application/ld+json")
-		w.Write([]byte(`{"error": "Invalid JSON Submitted"}`))
+		fmt.Fprintf(w, `{"error": "Invalid JSON Submitted"}`)
 		return
 	}
 
@@ -292,8 +298,7 @@ func UserCreate(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		w.WriteHeader(400)
-		w.Header().Set("Content-Type", "application/ld+json")
-		w.Write([]byte(`{"message": "Failed to Unmarshal Request JSON", "error": "` + err.Error() + `"}`))
+		fmt.Fprintf(w, `{"message": "Failed to Unmarshal Request JSON", "error": "%s"}`, err.Error() )
 		return
 	}
 
@@ -301,23 +306,20 @@ func UserCreate(w http.ResponseWriter, r *http.Request) {
 
 	if err == nil {
 		w.WriteHeader(201)
-		w.Header().Set("Content-Type", "application/ld+json")
-		w.Write([]byte(`{"created": {"@id": "` + u.Id + `"}}`))
+		fmt.Fprintf(w, `{"created": {"@id": "%s"}}`, u.Id)
 		return
 	}
 
 	// Error for when the User with u.Id Already Exists
 	if errors.Is(err, ErrDocumentExists) {
 		w.WriteHeader(400)
-		w.Header().Set("Content-Type", "application/ld+json")
-		w.Write([]byte(`{"error": "User Already Exists" ,"@id": "` + u.Id + `"}`))
+		fmt.Fprintf(w, `{"error": "User Already Exists" ,"@id": "%s"}`, u.Id)
 		return
 	}
 
 	// Unknown Error catch all
 	w.WriteHeader(500)
-	w.Header().Set("Content-Type", "application/ld+json")
-	w.Write([]byte(`{"error": "` + err.Error() + `"}`))
+	fmt.Fprintf(w, `{"error": "%s"}`, err.Error())
 	return
 
 }
