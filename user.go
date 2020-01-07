@@ -49,7 +49,7 @@ func (u User) MarshalJSON() ([]byte, error) {
 	userBuf.WriteString(`,`)
 
 	// write email
-	userBuf.WriteString(fmt.Sprintf(`"name": "%s"`, u.Email))
+	userBuf.WriteString(fmt.Sprintf(`"email": "%s"`, u.Email))
 	userBuf.WriteString(`,`)
 
 	// groups
