@@ -156,9 +156,11 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 
 func (g GlobusAuthClient) RevokeHandler(w http.ResponseWriter, r *http.Request) {
 
+	w.Header().Set("ContentType", "application/json")
+
 	// get the bearer token
 	token := strings.TrimPrefix("Bearer ", r.Header.Get("Authorization"))
-	err := g.revokeToken(token)
+	u, err := g.revokeToken(token)
 
 	if err != nil {
 		w.Write([]byte(`{"message": "Globus Token Revokation Failed", "error": "` + err.Error() + `"}`))
@@ -166,15 +168,15 @@ func (g GlobusAuthClient) RevokeHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	w.Header().Set("ContentType", "application/json")
-	w.Write([]byte(`{"revoked": "` + token + `"}`))
+	responseBody, _ := json.Marshal(u)
+	w.Write(responseBody)
 	w.WriteHeader(200)
 }
 
 // TODO: (MidPriority) Write Handler for Refresh Token Grant
 func (g GlobusAuthClient) RefreshHandler(w http.ResponseWriter, r *http.Request) {}
 
-func (g GlobusAuthClient) revokeToken(token string) (err error) {
+func (g GlobusAuthClient) revokeToken(token string) (u User, err error) {
 
 	client := &http.Client{}
 
@@ -183,7 +185,8 @@ func (g GlobusAuthClient) revokeToken(token string) (err error) {
 	req, err := http.NewRequest("POST", "https://auth.globus.org/v2/oauth2/token/revoke", reqBody)
 
 	if err != nil {
-		return fmt.Errorf("%w: %s", ErrHTTPInit, err.Error())
+		err = fmt.Errorf("%w: %s", ErrHTTPInit, err.Error())
+		return
 	}
 
 	// set basic authentication header
@@ -199,25 +202,22 @@ func (g GlobusAuthClient) revokeToken(token string) (err error) {
 
 	// return error for issues with HTTP Request
 	if err != nil {
-		return fmt.Errorf("%w: %s", ErrHTTPRequest, err.Error())
+		err = fmt.Errorf("%w: %s", ErrHTTPRequest, err.Error())
+		return
 	}
 
 	// status code for successfull token revokation
 	if resp.StatusCode != 200 {
 
 		// if attempt to revoke token has failed
-		responseJson, err := ioutil.ReadAll(resp.Body)
-
-		if err != nil {
-			return fmt.Errorf("%w: %s", ErrJSONUnmarshal, err.Error())
-		}
-
-		return fmt.Errorf("%w: %s", ErrGlobusRevoke, string(responseJson))
+		responseBody, _ := ioutil.ReadAll(resp.Body)
+		err = fmt.Errorf("%w: %s", ErrGlobusRevoke, string(responseBody))
+		return
 	}
 
-	// TODO: remove the active token from the user 
+	u, err = logoutUser(token)
 
-	return nil
+	return
 
 }
 
