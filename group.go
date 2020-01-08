@@ -133,7 +133,7 @@ func listGroups() (g []Group, err error) {
 
 func (g *Group) Get() (err error) {
 	var b []byte
-	b, err = findOne(g.Id)
+	b, err = MongoFindOne(g.Id)
 	if err != nil {
 		return
 	}

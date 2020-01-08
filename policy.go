@@ -94,7 +94,7 @@ func (p *Policy) Get() error {
 	var b []byte
 	var err error
 
-	b, err = findOne(p.Id)
+	b, err = MongoFindOne(p.Id)
 	if err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ func (p *Policy) Delete() error {
 	var b []byte
 	var err error
 
-	b, err = deleteOne(p.Id)
+	b, err = MongoDeleteOne(p.Id)
 	if err != nil {
 		return err
 	}

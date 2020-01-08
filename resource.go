@@ -21,12 +21,32 @@ func (r Resource) ID() string {
 	return r.Id
 }
 
-func (r Resource) Create() error {
+func (res Resource) Create() error {
 
-	// prove owner exists
-	r.Type = "Resource"
+	var err error
 
-	err := insertOne(r)
+	res.Type = "Resource"
+
+	// connect to the client
+	ctx, cancel, client, err := connectMongo()
+	defer cancel()
+
+	if err != nil {
+		return fmt.Errorf("%w: %s", ErrMongoClient, err.Error())
+	}
+
+	// connect to collection
+	collection := client.Database(MongoDatabase).Collection(MongoCollection)
+
+
+	//TODO:  prove owner exists
+
+	// create document
+	_, err = collection.InsertOne(ctx, res)
+
+	if err == nil {
+		return nil
+	}
 
 	if ErrorDocumentExists(err) {
 		return ErrDocumentExists
@@ -39,7 +59,7 @@ func (r *Resource) Get() error {
 	var b []byte
 	var err error
 
-	b, err = findOne(r.Id)
+	b, err = MongoFindOne(r.Id)
 	if err != nil {
 		return err
 	}

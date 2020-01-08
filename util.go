@@ -59,28 +59,7 @@ func connectMongo() (ctx context.Context, cancel context.CancelFunc, client *mon
 	return
 }
 
-func insertOne(document interface{}) (err error) {
-	ctx, cancel, client, err := connectMongo()
-	defer cancel()
-
-	if err != nil {
-		err = fmt.Errorf("%w: %s", ErrMongoClient, err.Error())
-		return
-	}
-
-	// connect to the user collection
-	collection := client.Database(MongoDatabase).Collection(MongoCollection)
-
-	_, err = collection.InsertOne(ctx, document)
-
-	if ErrorDocumentExists(err) {
-		err = ErrDocumentExists
-	}
-
-	return
-}
-
-func findOne(Id string) (b []byte, err error) {
+func MongoFindOne(Id string) (b []byte, err error) {
 	ctx, cancel, client, err := connectMongo()
 	defer cancel()
 
@@ -102,7 +81,7 @@ func findOne(Id string) (b []byte, err error) {
 	return
 }
 
-func deleteOne(Id string) (b []byte, err error) {
+func MongoDeleteOne(Id string) (b []byte, err error) {
 	ctx, cancel, client, err := connectMongo()
 	defer cancel()
 
@@ -122,19 +101,25 @@ func deleteOne(Id string) (b []byte, err error) {
 
 // Function to determine if an error from the mongo server is a MongoWriteError
 // where the document already exists and collides on at least one unique index
-
-
 func ErrorDocumentExists(err error) bool {
 
 	// if the mongo operation returned a Write Exception
-	if errorType := reflect.TypeOf(err); errorType.Name() == "WriteException" {
+	errorType := reflect.TypeOf(err)
+	errorName := errorType.Name()
+	fmt.Printf("ErrorType: %s\tErrorName: %s", err.Error(), errorName)
 
-		writeErr := err.(mongo.WriteException).WriteErrors
+	if errorName == "WriteException" {
 
-		if writeErr[0].Code == 11000 {
+		if len(err.(mongo.WriteException).WriteErrors) != 0 {
+
 			return true
+			//if writeErr.WriteErrors[0].Code == 11000 {
+			//	return true
+			//}
 		}
+
 	}
+
 	return false
 }
 
