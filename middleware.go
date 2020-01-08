@@ -2,9 +2,13 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/julienschmidt/httprouter"
 	"io/ioutil"
 	"net/http"
+	log "github.com/sirupsen/logrus"
+	"context"
+	"time"
+	"github.com/google/uuid"
+	"os"
 )
 
 var (
@@ -12,6 +16,19 @@ var (
 	AdminUser	string
 )
 
+func init() {
+
+  // Log as JSON instead of the default ASCII formatter.
+  log.SetFormatter(&log.JSONFormatter{})
+
+  // Output to stdout instead of the default stderr
+  // Can be any io.Writer, see below for File example
+  log.SetOutput(os.Stdout)
+
+  // Only log the warning severity or above.
+  log.SetLevel(log.InfoLevel)
+
+}
 
 func BasicAuth(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 	// Get the Basic Authentication credentials
@@ -23,8 +40,8 @@ func BasicAuth(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 	}
 
 	// Request Basic Authentication otherwise
-	w.Header().Set("WWW-Authenticate", "Basic realm=Restricted")
-	http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+	rw.Header().Set("WWW-Authenticate", "Basic realm=Restricted")
+	http.Error(rw, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 
 }
 
@@ -54,7 +71,21 @@ func ValidJSON(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 }
 
 func DefaultMiddleware(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-
 	rw.Header().Set("Content-Type", "application/ld+json")
 	next(rw, r)
+}
+
+// Add a logrus logger with default messages into the request context
+func LoggingMiddleware(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+
+	requestId := uuid.New()
+
+	contextLogger := log.WithFields(log.Fields{
+    "@id": requestId.String(),
+    "time": time.Now(),
+  })
+
+	ctx := context.WithValue(r.Context(), "log", contextLogger)
+
+	next(rw, r.WithContext(ctx))
 }
