@@ -73,7 +73,7 @@ func insertOne(document interface{}) (err error) {
 
 	_, err = collection.InsertOne(ctx, document)
 
-	if errDocExists(err) {
+	if ErrorDocumentExists(err) {
 		err = ErrDocumentExists
 	}
 
@@ -124,7 +124,7 @@ func deleteOne(Id string) (b []byte, err error) {
 // where the document already exists and collides on at least one unique index
 
 
-func errDocumentExists(err error) bool {
+func ErrorDocumentExists(err error) bool {
 
 	// if the mongo operation returned a Write Exception
 	if errorType := reflect.TypeOf(err); errorType.Name() == "WriteException" {

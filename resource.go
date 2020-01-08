@@ -28,7 +28,7 @@ func (r Resource) Create() error {
 
 	err := insertOne(r)
 
-	if errDocExists(err) {
+	if ErrorDocumentExists(err) {
 		return ErrDocumentExists
 	}
 
