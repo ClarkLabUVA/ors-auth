@@ -70,11 +70,6 @@ func ValidJSON(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 	next(rw, r)
 }
 
-func DefaultMiddleware(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-	rw.Header().Set("Content-Type", "application/ld+json")
-	next(rw, r)
-}
-
 // Add a logrus logger with default messages into the request context
 func LoggingMiddleware(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 
