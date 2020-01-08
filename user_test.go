@@ -139,3 +139,161 @@ func TestUserHandlers(t *testing.T) {
 	})
 
 }
+
+func TestUserMethods(t *testing.T) {
+
+	var TestUserId = "orcid:1234-1234-1234-1234"
+	var TestUser User
+
+	TestUser.Id = "orcid:1234-1234-1234-1234"
+	TestUser.Delete()
+
+	TestUser = User{
+		Id:      "orcid:1234-1234-1234-1234",
+		Name:    "Joe Schmoe",
+		Email:   "JoeSchmoe@example.org",
+		IsAdmin: false,
+		Groups:  []string{},
+	}
+
+	t.Run("Create", func(t *testing.T) {
+
+		err := TestUser.Create()
+
+		if err != nil {
+			t.Errorf("Failed to Create the User: %s", err.Error())
+		}
+
+	})
+
+	t.Run("Get", func(t *testing.T) {
+
+		findUser := User{Id: TestUserId}
+		err := findUser.Get()
+
+		if err != nil {
+			t.Errorf("Failed to Get User: %s", err.Error())
+		}
+
+		t.Logf("Found User: %+v", findUser)
+
+	})
+
+	t.Run("QueryUserEmail", func(t *testing.T) {
+		u, err := queryUserEmail(TestUser.Email)
+		if err != nil {
+			t.Errorf("QueryUserEmail: Failed to Find Test Error \n\t%w", err)
+		}
+
+		t.Logf("QueryUserEmail: Found Test User \n\t%+v", u)
+
+	})
+
+	t.Run("List", func(t *testing.T) {
+		userList, err := listUsers()
+
+		if err != nil {
+			t.Errorf("Failed to List Users: %s", err.Error())
+		}
+
+		if len(userList) == 0 {
+			t.Errorf("Failed to List any Users")
+		}
+
+		t.Logf("Found Users: %+v", userList)
+
+	})
+
+	t.Run("Delete", func(t *testing.T) {
+
+		delUser := User{Id: TestUserId}
+		err := delUser.Delete()
+
+		if err != nil {
+			t.Errorf("Failed to Delete User: %s", err.Error())
+		}
+
+		t.Logf("Deleted User: %+v", delUser)
+
+	})
+
+}
+
+func TestUserJSONUnmarshal(t *testing.T) {
+	t.Run("Default", func(t *testing.T) {
+		userBytes := []byte(`{"name": "Joe Schmoe", "email": "jschmoe@example.org", "is_admin": false}`)
+		var u User
+
+		err := json.Unmarshal(userBytes, &u)
+		if err != nil {
+			t.Fatalf("Error Unmarshaling Identifier")
+		}
+
+		t.Logf("UnmarshaledUser: %+v", u)
+
+	})
+
+	t.Run("InvalidEmail", func(t *testing.T) {
+
+		userBytes := []byte(`{"name": "Joe Schmoe", "email": "jschmexample.org", "is_admin": false}`)
+		var u User
+		err := json.Unmarshal(userBytes, &u)
+		if err == nil {
+			t.Fatalf("ERROR: InvalidEmail \temail: %s", u.Email)
+		}
+
+		userBytes = []byte(`{"name": "Joe Schmoe", "email": "jschmexampleorg", "is_admin": false}`)
+		err = json.Unmarshal(userBytes, &u)
+		if err == nil {
+			t.Fatalf("ERROR: %s", err.Error())
+		}
+
+		userBytes = []byte(`{"name": "Joe Schmoe", "email": "jschm@exampleorg", "is_admin": false}`)
+		err = json.Unmarshal(userBytes, &u)
+		if err == nil {
+			t.Fatalf("ERROR: InvalidEmail \temail: %s", u.Email)
+		}
+
+		userBytes = []byte(`{"name": "Joe Schmoe", "email": "jschm@@example..org", "is_admin": false}`)
+		err = json.Unmarshal(userBytes, &u)
+		if err == nil {
+			t.Fatalf("ERROR: InvalidEmail \temail: %s", u.Email)
+		}
+
+	})
+
+	t.Run("ExtraFields", func(t *testing.T) {
+		userBytes := []byte(`{"name": "Joe Schmoe", "email": "jschmoe@example.org", "is_admin": false, "groups": ["g1", "g2"]}`)
+		var u User
+
+		err := json.Unmarshal(userBytes, &u)
+		if err != nil {
+			t.Fatalf("Error Unmarshaling Identifier")
+		}
+
+		if len(u.Groups) != 0 {
+			t.Fatalf("ErrGroups Not Empty:  %+v", u.Groups)
+		}
+
+	})
+}
+
+func TestUserJSONMarshal(t *testing.T) {
+
+	u := User{
+		Id:      "max",
+		Email:   "mlev@example.org",
+		Name:    "maxwell",
+		Groups:  []string{"LevinsonFam", "Bagel Enthusiast"},
+		IsAdmin: false,
+		Session: "abcd",
+	}
+	userJSON, err := json.Marshal(u)
+
+	if err != nil {
+		t.Fatalf("ERROR: %s", err.Error())
+	}
+
+	t.Logf("MarshaledUser: %s", string(userJSON))
+
+}
