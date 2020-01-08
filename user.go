@@ -22,6 +22,8 @@ type User struct {
 	IsAdmin bool     `json:"is_admin" bson:"is_admin"`
 	Groups  []string `json:"groups" bson:"groups"`
 	Session string   `json:"session" bson:"session"`
+	AccessToken  string  `json:"access_token" bson:"access_token"`
+	RefreshToken string	`json:"refresh_token" bson:"refresh_token"`
 }
 
 func (u User) ID() string {
@@ -120,6 +122,56 @@ func (u *User) UnmarshalJSON(data []byte) error {
 	return err
 }
 
+func queryUserEmail(email string) (u User, err error) {
+
+	ctx, cancel, client, err := connectMongo()
+	defer cancel()
+
+	if err != nil {
+		err = fmt.Errorf("%w: %s", ErrMongoClient, err.Error())
+		return
+	}
+
+	// connect to the user collection
+	collection := client.Database(MongoDatabase).Collection(MongoCollection)
+
+	query := bson.D{{"email", email}, {"@type", TypeUser}}
+	err = collection.FindOne(ctx, query).Decode(&u)
+
+	// TODO: Error Handling
+	// if decoding error
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func logoutUser(token string) (u User, err error) {
+
+	query := bson.D{{"access_token", token}, {"@type", TypeUser}}
+	update := bson.D{{"$set", bson.D{{"access_token", ""}}  }}
+
+	ctx, cancel, client, err := connectMongo()
+	defer cancel()
+
+	if err != nil {
+		return
+	}
+
+	collection := client.Database(MongoDatabase).Collection(MongoCollection)
+
+	res := collection.FindOneAndUpdate(ctx, query, update)
+
+	err = res.Decode(&u)
+
+	// TODO: Error Handling For Following Cases
+	// ErrNilDocument
+
+	return
+
+}
+
 func listUsers() (u []User, err error) {
 
 	mongoCtx, cancel, client, err := connectMongo()
@@ -164,16 +216,16 @@ func (u *User) Create() (err error) {
 
 	_, err = collection.InsertOne(ctx, u)
 
-	// if errDocExists(err) {
-	//	err = ErrDocumentExists
-	// }
+	if ErrorDocumentExists(err) {
+		err = ErrDocumentExists
+	}
 
 	return
 }
 
 func (u *User) Get() (err error) {
 	var b []byte
-	b, err = findOne(u.Id)
+	b, err = MongoFindOne(u.Id)
 	if err != nil {
 		return
 	}
@@ -182,58 +234,9 @@ func (u *User) Get() (err error) {
 	return
 }
 
-func queryUserEmail(email string) (u User, err error) {
-
-	ctx, cancel, client, err := connectMongo()
-	defer cancel()
-
-	if err != nil {
-		err = fmt.Errorf("%w: %s", ErrMongoClient, err.Error())
-		return
-	}
-
-	// connect to the user collection
-	collection := client.Database(MongoDatabase).Collection(MongoCollection)
-
-	query := bson.D{{"email", email}, {"@type", TypeUser}}
-	err = collection.FindOne(ctx, query).Decode(&u)
-
-	// if decoding error
-	if err != nil {
-		return
-	}
-
-	return
-}
-
-func logoutUser(token string) (u User, err error) {
-
-	query := bson.D{{"access_token", token}, {"@type", TypeUser}}
-	update := bson.D{{"$set", bson.D{{"access_token", ""}}  }}
-
-	ctx, cancel, client, err := connectMongo()
-	defer cancel()
-
-	if err != nil {
-		return
-	}
-
-	collection := client.Database(MongoDatabase).Collection(MongoCollection)
-
-	res := collection.FindOneAndUpdate(ctx, query, update)
-
-	err = res.Decode(&u)
-
-	// TODO: Error Handling For Following Cases
-	// ErrNilDocument
-
-	return
-
-}
-
 func (u *User) Delete() (err error) {
 	var b []byte
-	b, err = deleteOne(u.Id)
+	b, err = MongoDeleteOne(u.Id)
 	if err != nil {
 		return
 	}
