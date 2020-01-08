@@ -7,20 +7,25 @@ import (
 	"net/http"
 )
 
-func BasicAuth(h httprouter.Handle, requiredUser, requiredPassword string) httprouter.Handle {
-	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-		// Get the Basic Authentication credentials
-		user, password, hasAuth := r.BasicAuth()
+var (
+	AdminPassword string
+	AdminUser	string
+)
 
-		if hasAuth && user == requiredUser && password == requiredPassword {
-			// Delegate request to the given handle
-			h(w, r, ps)
-		} else {
-			// Request Basic Authentication otherwise
-			w.Header().Set("WWW-Authenticate", "Basic realm=Restricted")
-			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-		}
+
+func BasicAuth(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+	// Get the Basic Authentication credentials
+	user, password, hasAuth := r.BasicAuth()
+
+	if hasAuth && user == AdminUser && password == AdminPassword {
+		// Delegate request to the given handle
+		next(rw, r)
 	}
+
+	// Request Basic Authentication otherwise
+	w.Header().Set("WWW-Authenticate", "Basic realm=Restricted")
+	http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+
 }
 
 func ValidJSON(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
