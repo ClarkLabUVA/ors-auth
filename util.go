@@ -108,14 +108,12 @@ func ErrorDocumentExists(err error) bool {
 	errorName := errorType.Name()
 	fmt.Printf("ErrorType: %s\tErrorName: %s", err.Error(), errorName)
 
-	if errorName == "WriteException" {
+	if errorName == "WriteErrors" {
 
-		if len(err.(mongo.WriteException).WriteErrors) != 0 {
+		mongoErr := err.(mongo.WriteErrors)
 
+		if mongoErr[0].Code == 11000 {
 			return true
-			//if writeErr.WriteErrors[0].Code == 11000 {
-			//	return true
-			//}
 		}
 
 	}
