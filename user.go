@@ -6,13 +6,44 @@ import (
 	"errors"
 	"encoding/json"
 	"github.com/julienschmidt/httprouter"
+	"log"
 	"fmt"
 	"regexp"
 	"bytes"
 	"github.com/google/uuid"
 	bson "go.mongodb.org/mongo-driver/bson"
+	mongo "go.mongodb.org/mongo-driver/mongo"
+	options "go.mongodb.org/mongo-driver/mongo/options"
 )
 
+func init() {
+
+	ctx, cancel, client, err := connectMongo()
+	defer cancel()
+
+	if err != nil {
+		log.Printf("UserInit: Failed to Connect to Mongo\t Error: %s", err.Error())
+	}
+
+	collection := client.Database(MongoDatabase).Collection(MongoCollection)
+
+	// build an index creation request
+	model := mongo.IndexModel{
+		Keys: bson.D{{"email", 1}},
+		Options: options.Index().SetName("email").SetUnique(true).SetPartialFilterExpression(bson.D{{"@type",  TypeUser}}),
+	}
+
+	opts := options.CreateIndexes()
+
+
+	// create unique index on email property for documents of type
+	_, err = collection.Indexes().CreateOne(ctx, model, opts)
+
+	if err != nil {
+		log.Printf("Setting Up User Index: %s", err.Error())
+	}
+
+}
 
 type User struct {
 	Id      string   `json:"@id" bson:"@id"`
@@ -140,8 +171,8 @@ func queryUserEmail(email string) (u User, err error) {
 
 	// TODO: Error Handling
 	// if decoding error
-	if err != nil {
-		return
+	if err == mongo.ErrNoDocuments {
+		err = ErrNoDocument
 	}
 
 	return
