@@ -94,6 +94,7 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 	// find the user in the record
 	user, err := queryUserEmail(introspectedToken.Email)
 
+	/*
 	// if no user record is found, create a new record
 	if errors.Is(err, ErrNoDocument) {
 
@@ -118,22 +119,37 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(201)
 		return
 	}
+	*/
 
-	/*
 	// TODO: Return Error if Login isn't found
 	// if error isn't no document found
 	if err != nil {
 
+		if err == ErrNoDocument {
+
+			response["message"] = "No user record found"
+			response["error"] = err.Error()
+			response["status_code"] = 404
+			response["globus_token"] = introspectedToken
+
+			encodedResponse, _ := json.Marshal(response)
+			w.Write(encodedResponse)
+			w.WriteHeader(404)
+			return
+
+		}
+
+		response["message"] = "Error Querying Database"
+		response["error"] = err.Error()
+		response["status_code"] = 500
 		response["globus_token"] = introspectedToken
-		response["message"] = "error finding user record"
-		response["error"] = err
 
 		encodedResponse, _ := json.Marshal(response)
 		w.Write(encodedResponse)
 		w.WriteHeader(500)
 		return
+
 	}
-	*/
 
 	response["user"] = user
 	response["access_token"] = token
