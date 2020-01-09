@@ -41,7 +41,7 @@ func (g GlobusAuthClient) GrantHandler(w http.ResponseWriter, r *http.Request) {
 
 func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 
-	w.Header().Set("ContentType", "application/json")
+	w.Header().Set("Content-Type", "application/json")
 	response := make(map[string]interface{})
 
 	var code string
@@ -61,6 +61,7 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		response["message"] = "failed to exchange authorization code with globus"
 		response["error"] = err
+		response["status_code"] = 400
 
 		encodedResponse, _ := json.Marshal(response)
 		w.Write(encodedResponse)
@@ -74,6 +75,7 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		response["message"] = "Failed to Introspect Globus Token"
 		response["error"] = err
+		response["status_code"] = 500
 		response["globus_token"] = token
 
 		encodedResponse, _ := json.Marshal(response)
@@ -154,6 +156,7 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 	response["user"] = user
 	response["access_token"] = token
 	response["introspected"] = introspectedToken
+	response["status_code"] = 200
 	//response["identities"] = identitiesResponse.Identities
 
 	resp, err := json.Marshal(response)
@@ -172,7 +175,7 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 
 func (g GlobusAuthClient) RevokeHandler(w http.ResponseWriter, r *http.Request) {
 
-	w.Header().Set("ContentType", "application/json")
+	w.Header().Set("Content-Type", "application/json")
 
 	// get the bearer token
 	token := strings.TrimPrefix("Bearer ", r.Header.Get("Authorization"))
