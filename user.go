@@ -247,6 +247,10 @@ func (u *User) Create() (err error) {
 
 	_, err = collection.InsertOne(ctx, u)
 
+	if err == nil {
+		return
+	}
+
 	if ErrorDocumentExists(err) {
 		err = ErrDocumentExists
 	}

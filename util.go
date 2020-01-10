@@ -10,6 +10,7 @@ import (
 	bson "go.mongodb.org/mongo-driver/bson"
 	mongo "go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"log"
 )
 
 var (
@@ -105,8 +106,15 @@ func MongoDeleteOne(Id string) (b []byte, err error) {
 func ErrorDocumentExists(err error) bool {
 	var writeError mongo.WriteError
 
+	// causes pointer error, reflecting on nil causes panic
+	if err == nil {
+		return false
+	}
+
 	// if the mongo operation returned a Write Exception
+	errorType := reflect.TypeOf(err)
 	errorName := errorType.Name()
+	log.Printf("ErrorType: %s, ErrorName: %s", errorType, errorName)
 
 	if errorName == "WriteErrors" {
 		writeError = err.(mongo.WriteErrors)[0]
