@@ -149,7 +149,8 @@ func PolicyCreate(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		w.WriteHeader(201)
 		w.Header().Set("Content-Type", "application/ld+json")
-		w.Write([]byte(`{"created": {"@id": "` + p.Id + `"}}`))
+		responseBody, _ := json.Marshal(p)
+		w.Write(responseBody)
 		return
 	}
 

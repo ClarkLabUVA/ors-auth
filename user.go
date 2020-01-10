@@ -340,7 +340,8 @@ func UserCreate(w http.ResponseWriter, r *http.Request) {
 
 	if err == nil {
 		w.WriteHeader(201)
-		fmt.Fprintf(w, `{"created": {"@id": "%s"}}`, u.Id)
+		createdUser, _ := json.Marshal(u)
+		w.Write(createdUser)
 		return
 	}
 
