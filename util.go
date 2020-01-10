@@ -101,21 +101,26 @@ func MongoDeleteOne(Id string) (b []byte, err error) {
 
 // Function to determine if an error from the mongo server is a MongoWriteError
 // where the document already exists and collides on at least one unique index
+// Need to crack open the returned errors
 func ErrorDocumentExists(err error) bool {
+	var writeError mongo.WriteError
 
 	// if the mongo operation returned a Write Exception
-	errorType := reflect.TypeOf(err)
 	errorName := errorType.Name()
-	fmt.Printf("ErrorType: %s\tErrorName: %s", err.Error(), errorName)
 
 	if errorName == "WriteErrors" {
+		writeError = err.(mongo.WriteErrors)[0]
+	}
+	if errorName == "WriteException" {
+		writeError = err.(mongo.WriteException).WriteErrors[0]
+	}
 
-		mongoErr := err.(mongo.WriteErrors)
+	if errorName != "WriteErrors" && errorName != "WriteException" {
+		return false
+	}
 
-		if mongoErr[0].Code == 11000 {
-			return true
-		}
-
+	if writeError.Code == 11000 {
+		return true
 	}
 
 	return false
