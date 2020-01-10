@@ -9,11 +9,11 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 AUTH_SERVER = "https://localhost:8080/"
 VERIFY = False
 
-class Error():
-    def __init__(self, **kwargs):
-        self.response = kwargs.get("response")
-        self.message = kwargs.get("message")
-        self.status_code = kwargs.get("status_code")
+class MissingProperty(Exception):
+
+    def __init__(self, message):
+        self.message = message
+
 
 class User():
     def __init__(self, **kwargs):
@@ -31,7 +31,7 @@ class User():
         '''
 
         if self.user_id is None:
-            return "User ID cannot be None"
+            raise MissingProperty("User.get() requires User.user_id not be None")
 
         response = requests.get(AUTH_SERVER + "user/" + self.user_id, verify=VERIFY)
 
@@ -66,21 +66,24 @@ class User():
         # FIXME: load response data into class ('@id' element into self.user_id)
         response_body = json.loads(response.content.decode("utf-8"))
 
-        self.id = response_body.get("@id")
+        self.user_id = response_body.get("@id")
 
-        if self.id is None:
-            return response
+        if self.user_id is None:
+            raise Exception
 
     def delete(self):
+
+        if self.user_id is None:
+            raise MissingProperty("User property user_id may not be none when deleting")
+
         response = requests.delete(
-            url=AUTH_SERVER + "user/" + self.id,
+            url=AUTH_SERVER + "user/" + self.user_id,
             verify = VERIFY
         )
 
         if response.status_code != 200:
             return response
 
-        return response
 
     def logout(self):
         pass
