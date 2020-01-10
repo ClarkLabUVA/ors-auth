@@ -11,3 +11,4 @@ notes.md
 *.key
 auth
 Makefile
+client/__pycache__

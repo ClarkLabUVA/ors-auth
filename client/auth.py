@@ -24,7 +24,7 @@ class User():
         self.access_token = kwargs.get("access_token")
         self.refresh_token = kwargs.get("refresh_token")
 
-    def get_one(self):
+    def get(self):
         ''' Get this user's record
 
         Requires the user_id or the user_email to be present
@@ -86,12 +86,17 @@ class User():
         pass
 
     def refresh_token(self):
-        ''' Use the Refresh Token
+        ''' Use the Refresh Token to Grant a New Access Token
         '''
         pass
 
     def list_resources(self):
         ''' List all resources this user owns
+        '''
+        pass
+
+    def list_groups(self):
+        ''' List all groups this user is a member of
         '''
         pass
 
@@ -104,3 +109,6 @@ class User():
         ''' List all challenges this user has made
         '''
         pass
+
+if __name__== '__main__':
+    print("CLI Goes Here")
