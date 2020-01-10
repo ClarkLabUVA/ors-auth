@@ -144,7 +144,7 @@ func (g *Group) Get() (err error) {
 
 // add owner to members
 // update all members User profile to have
-func (g Group) Create() (err error) {
+func (g *Group) Create() (err error) {
 
 	// connect to the client
 	ctx, cancel, client, err := connectMongo()
@@ -166,7 +166,7 @@ func (g Group) Create() (err error) {
 
 	// add membership of group
 	adminResult := collection.FindOneAndUpdate(ctx,
-		bson.D{{"@id", g.Admin}, {"@type", "User"}},
+		bson.D{{"@id", g.Admin}, {"@type", TypeUser}},
 		bson.D{{"$addToSet", bson.D{{"groups", g.Id}}}},
 	)
 

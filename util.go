@@ -37,7 +37,7 @@ var (
 )
 
 const (
-	TypeGroup     = "Group"
+	TypeGroup     = "Organization"
 	TypeUser      = "Person"
 	TypeResource  = "Resource"
 	TypePolicy    = "Policy"

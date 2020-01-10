@@ -3,23 +3,36 @@ package main
 import (
 	"testing"
 	"encoding/json"
+	"errors"
 )
 
 // Basic CRUD Tests for Groups
 func TestGroupMethods(t *testing.T) {
-	admin := User{Id: "orcid:1", Groups: []string{}}
-	admin.Create()
+	var err error
 
-	user := User{Id: "orcid:2", Groups: []string{}}
-	user.Create()
+	admin := User{Id: "orcid:1", Email: "admin@gmail.com", Type: TypeUser}
+	err = admin.Create()
 
-	g := Group{Id: "group1", Admin: "orcid:1", Members: []string{"orcid:2"}}
+	if err != nil && !errors.Is(err, ErrDocumentExists) {
+		t.Fatalf("SetupFailure: Failed to Create Admin\t Error: %s", err.Error())
+	}
+	err = nil
+
+	member := User{Id: "member", Email: "member@gmail.com", Type: TypeUser}
+	err = member.Create()
+
+	if err != nil && !errors.Is(err, ErrDocumentExists) {
+		t.Fatalf("SetupFailure: Failed to Create User\t Error: %s", err.Error())
+	}
+
+	err = nil
+
+	g := Group{Id: "group1", Type: TypeGroup, Admin: "orcid:1", Members: []string{"orcid:2"}}
 
 	t.Run("Create", func(t *testing.T) {
 
-		var err error
-
-		if err = g.Create(); err != nil {
+		err := g.Create()
+		if err != nil {
 			t.Fatalf("Failed to Create Group: %s", err.Error())
 		}
 
@@ -38,7 +51,7 @@ func TestGroupMethods(t *testing.T) {
 
 		// Verify User is member of group
 		var updatedUser User
-		updatedUser.Id = user.Id
+		updatedUser.Id = member.Id
 		err = updatedUser.Get()
 
 		if err != nil {
@@ -71,6 +84,10 @@ func TestGroupMethods(t *testing.T) {
 
 		t.Logf("Deleted Group: %+v", del)
 	})
+
+
+	admin.Delete()
+	member.Delete()
 
 }
 
