@@ -215,9 +215,10 @@ func listUsers() (u []User, err error) {
 
 	collection := client.Database(MongoDatabase).Collection(MongoCollection)
 
-	query := bson.D{{"@type", "User"}}
+	query := bson.D{{"@type", TypeUser}}
 	cur, err := collection.Find(mongoCtx, query, nil)
 	defer cur.Close(mongoCtx)
+
 	if err != nil {
 		err = fmt.Errorf("%w: %s", ErrMongoQuery, err.Error())
 		return
@@ -259,13 +260,18 @@ func (u *User) Create() (err error) {
 }
 
 func (u *User) Get() (err error) {
-	var b []byte
-	b, err = MongoFindOne(u.Id)
+
+	ctx, cancel, client, err := connectMongo()
+	defer cancel()
+
 	if err != nil {
+		err = fmt.Errorf("%w: %s", ErrMongoClient, err.Error())
 		return
 	}
 
-	err = bson.Unmarshal(b, &u)
+	collection := client.Database(MongoDatabase).Collection(MongoCollection)
+	err = collection.FindOne(ctx, bson.D{{"@id", u.Id}}).Decode(&u)
+
 	return
 }
 

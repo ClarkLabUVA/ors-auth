@@ -150,6 +150,7 @@ func TestUserMethods(t *testing.T) {
 
 	TestUser = User{
 		Id:      "orcid:1234-1234-1234-1234",
+		Type: TypeUser,
 		Name:    "Joe Schmoe",
 		Email:   "JoeSchmoe@example.org",
 		IsAdmin: false,
@@ -179,10 +180,10 @@ func TestUserMethods(t *testing.T) {
 
 	})
 
-	t.Run("QueryUserEmail", func(t *testing.T) {
+	t.Run("GetEmail", func(t *testing.T) {
 		u, err := queryUserEmail(TestUser.Email)
 		if err != nil {
-			t.Errorf("QueryUserEmail: Failed to Find Test Error \n\t%w", err)
+			t.Errorf("QueryUserEmail: Failed to Find TestUser Error: %s", err.Error())
 		}
 
 		t.Logf("QueryUserEmail: Found Test User \n\t%+v", u)
@@ -216,6 +217,8 @@ func TestUserMethods(t *testing.T) {
 		t.Logf("Deleted User: %+v", delUser)
 
 	})
+
+	TestUser.Delete()
 
 }
 
