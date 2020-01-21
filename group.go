@@ -115,7 +115,7 @@ func listGroups() (g []Group, err error) {
 
 	collection := client.Database(MongoDatabase).Collection(MongoCollection)
 
-	query := bson.D{{"@type", "Group"}}
+	query := bson.D{{"@type", TypeGroup}}
 	cur, err := collection.Find(mongoCtx, query, nil)
 	defer cur.Close(mongoCtx)
 	if err != nil {
