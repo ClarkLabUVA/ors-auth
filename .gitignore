@@ -12,3 +12,4 @@ notes.md
 auth
 Makefile
 client/__pycache__
+client/*.ipynb
