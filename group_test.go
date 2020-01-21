@@ -6,6 +6,16 @@ import (
 	"errors"
 )
 
+func init() {
+	// drop collection
+	MongoCollection = "test"
+
+	mongoCtx, cancel, client, _ := connectMongo()
+	defer cancel()
+
+	client.Database(MongoDatabase).Collection(MongoCollection).Drop(mongoCtx)
+}
+
 // Basic CRUD Tests for Groups
 func TestGroupMethods(t *testing.T) {
 	var err error
