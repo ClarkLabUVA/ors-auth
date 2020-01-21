@@ -3,7 +3,6 @@ package main
 import (
 	"testing"
 	"encoding/json"
-	"errors"
 )
 
 func init() {
@@ -20,24 +19,37 @@ func init() {
 func TestGroupMethods(t *testing.T) {
 	var err error
 
-	admin := User{Id: "orcid:1", Email: "admin@gmail.com", Type: TypeUser}
+	admin := User{
+		Id: "orcid:1",
+		Email: "admin@gmail.com",
+		Type: TypeUser,
+		Groups: []string{},
+	}
+
 	err = admin.Create()
 
-	if err != nil && !errors.Is(err, ErrDocumentExists) {
+	if err != nil {
 		t.Fatalf("SetupFailure: Failed to Create Admin\t Error: %s", err.Error())
 	}
-	err = nil
 
-	member := User{Id: "member", Email: "member@gmail.com", Type: TypeUser}
+	member := User{
+		Id: "member",
+		Email: "member@gmail.com",
+		Type: TypeUser,
+		Groups: []string{},
+	}
 	err = member.Create()
 
-	if err != nil && !errors.Is(err, ErrDocumentExists) {
+	if err != nil {
 		t.Fatalf("SetupFailure: Failed to Create User\t Error: %s", err.Error())
 	}
 
-	err = nil
-
-	g := Group{Id: "group1", Type: TypeGroup, Admin: "orcid:1", Members: []string{"orcid:2"}}
+	g := Group{
+		Id: "group1",
+		Type: TypeGroup,
+		Admin: "orcid:1",
+		Members: []string{"orcid:2"},
+	}
 
 	t.Run("Create", func(t *testing.T) {
 
