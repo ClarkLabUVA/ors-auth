@@ -1,10 +1,11 @@
-package main
+package server 
 
 import (
 	"flag"
 	"github.com/julienschmidt/httprouter"
 	"log"
 	"net/http"
+	"github.com/ClarkLabUVA/auth/pkg/globus"
 )
 
 func main() {
