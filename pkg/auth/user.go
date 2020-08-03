@@ -8,6 +8,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"log"
 	"fmt"
+	"github.com/google/uuid"	
 	bson "go.mongodb.org/mongo-driver/bson"
 	mongo "go.mongodb.org/mongo-driver/mongo"
 	options "go.mongodb.org/mongo-driver/mongo/options"
@@ -136,6 +137,9 @@ func listUsers() (u []User, err error) {
 }
 
 func (u *User) create() (err error) {
+
+	uid, err := uuid.NewRandom()
+	u.ID = uid.String()
 
 	ctx, cancel, client, err := connectMongo()
 	defer cancel()
