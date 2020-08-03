@@ -1,24 +1,21 @@
 package server 
 
 import (
-	"flag"
 	"github.com/julienschmidt/httprouter"
 	"log"
 	"net/http"
 	"github.com/ClarkLabUVA/auth/pkg/globus"
+	"os"
 )
 
 func main() {
 
 	router := httprouter.New()
 
-	var globusClientID = flag.String("clientID", "", "Client ID from Globus Auth")
-	var globusClientSecret = flag.String("clientSecret", "", "Client Secret from Globus Auth")
-
-	var certPath = flag.String("cert", "", "Path to TLS Certificate")
-	var keyPath = flag.String("key", "", "Path to TLS Key")
-
-	var redirectURL = flag.String("redirect", "https://localhost:8080/oauth/token", "Redirect URL for Globus to Return to after access Code is granted")
+	var globusClientID = os.Getenv("GLOBUS_CLIENT_ID")
+	var globusClientSecret = os.Getenv("GLOBUS_CLIENT_SECRET")
+	var redirectURL = os.Getenv("REDIRECT_URL")
+	
 	var scopes = "urn:globus:auth:scope:auth.globus.org:view_identity_set+urn:globus:auth:scope:auth.globus.org:view_identities+openid+email+profile"
 
 	flag.Parse()
