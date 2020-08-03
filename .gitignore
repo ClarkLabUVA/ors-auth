@@ -13,3 +13,4 @@ auth
 Makefile
 client/__pycache__
 client/*.ipynb
+go.sum
