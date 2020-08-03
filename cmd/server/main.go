@@ -37,11 +37,11 @@ func main() {
 
 	// POST /oauth/logout
 	// invalidate a current session within globus auth and locally
-	router.HandlerFunc("/oauth/logout", globusClient.RevokeHandler)
+	router.HandleFunc("/oauth/logout", globusClient.RevokeHandler)
 
 	// POST /oauth/refresh  
 	// using refresh token and grant a new access token
-	router.HandlerFunc("/oauth/refresh", globusClient.RefreshHandler)
+	router.HandleFunc("/oauth/refresh", globusClient.RefreshHandler)
 
 	/*
 		router.Handler("POST", "/user", http.HandlerFunc(UserCreate))
