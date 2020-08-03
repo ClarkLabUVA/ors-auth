@@ -12,13 +12,13 @@ func TestErrorDocuments(t *testing.T) {
 
 
 
-	if ErrorDocumentExists(err) {
+	if errorDocumentExists(err) {
 		t.Errorf("Error is not Document Exists")
 	}
 
 	mongoErr := mongo.WriteErrors{ mongo.WriteError{Code: 11000}}
 
-	if !ErrorDocumentExists(mongoErr) {
+	if !errorDocumentExists(mongoErr) {
 		t.Errorf("ErrorDocumentExists fails to detect correct error ")
 	}
 

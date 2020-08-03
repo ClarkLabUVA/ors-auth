@@ -4,10 +4,8 @@ import (
 	"net/http"
 	"context"
 	"errors"
-	"fmt"
 	"reflect"
 	"time"
-	bson "go.mongodb.org/mongo-driver/bson"
 	mongo "go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
@@ -31,6 +29,7 @@ var (
 	mongoURI        = os.Getenv("MONGO_URI") 
 	mongoDatabase   = os.Getenv("MONGO_DB") 
 	mongoCollection = os.Getenv("MONGO_COL")
+	orsURI			= os.Getenv("ORS_URI")
 )
 
 const (
@@ -54,46 +53,6 @@ func connectMongo() (ctx context.Context, cancel context.CancelFunc, client *mon
 
 	// connect to the client
 	err = client.Connect(ctx)
-	return
-}
-
-func mongoFindOne(ID string) (b []byte, err error) {
-	ctx, cancel, client, err := connectMongo()
-	defer cancel()
-
-	if err != nil {
-		err = fmt.Errorf("%w: %s", ErrMongoClient, err.Error())
-		return
-	}
-
-	// connect to the user collection
-	collection := client.Database(MongoDatabase).Collection(MongoCollection)
-
-	query := bson.D{{"@id", ID}}
-	b, err = collection.FindOne(ctx, query).DecodeBytes()
-
-	if err != nil {
-		return
-	}
-
-	return
-}
-
-func mongoDeleteOne(ID string) (b []byte, err error) {
-	ctx, cancel, client, err := connectMongo()
-	defer cancel()
-
-	if err != nil {
-		err = fmt.Errorf("%w: %s", ErrMongoClient, err.Error())
-		return
-	}
-
-	// connect to the user collection
-	collection := client.Database(MongoDatabase).Collection(MongoCollection)
-
-	query := bson.D{{"@id", ID}}
-	b, err = collection.FindOneAndDelete(ctx, query).DecodeBytes()
-
 	return
 }
 

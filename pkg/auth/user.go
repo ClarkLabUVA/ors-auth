@@ -8,9 +8,6 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"log"
 	"fmt"
-	"regexp"
-	"bytes"
-	"github.com/google/uuid"
 	bson "go.mongodb.org/mongo-driver/bson"
 	mongo "go.mongodb.org/mongo-driver/mongo"
 	options "go.mongodb.org/mongo-driver/mongo/options"
@@ -25,12 +22,12 @@ func init() {
 		log.Printf("UserInit: Failed to Connect to Mongo\t Error: %s", err.Error())
 	}
 
-	collection := client.Database(MongoDatabase).Collection(MongoCollection)
+	collection := client.Database(mongoDatabase).Collection(mongoCollection)
 
 	// build an index creation request
 	model := mongo.IndexModel{
 		Keys: bson.D{{"email", 1}},
-		Options: options.Index().SetName("email").SetUnique(true).SetPartialFilterExpression(bson.D{{"@type",  TypeUser}}),
+		Options: options.Index().SetName("email").SetUnique(true).SetPartialFilterExpression(bson.D{{"@type",  typeUser}}),
 	}
 
 	opts := options.CreateIndexes()
@@ -45,6 +42,7 @@ func init() {
 
 }
 
+// User is a structure for user data with methods for interacting with Mongo
 type User struct {
 	ID      string   `json:"@id" bson:"@id"`
 	Type    string   `json:"@type" bson:"@type"`
@@ -57,118 +55,26 @@ type User struct {
 	RefreshToken string	`json:"refresh_token" bson:"refresh_token"`
 }
 
-func (u User) MarshalJSON() ([]byte, error) {
-
-	var userBuf bytes.Buffer
-	var err error
-
-	// open quotes
-	userBuf.WriteString(`{`)
-
-	// write out user id as full http
-	userBuf.WriteString(fmt.Sprintf(`"@id": "%suser/%s"`, ORSURI, u.Id))
-	userBuf.WriteString(`,`)
-
-	// write context
-	userBuf.WriteString(`"@context": {"@base": "http://schema.org/"}`)
-	userBuf.WriteString(`,`)
-
-	// write name
-	userBuf.WriteString(fmt.Sprintf(`"name": "%s"`, u.Name))
-	userBuf.WriteString(`,`)
-
-	// write email
-	userBuf.WriteString(fmt.Sprintf(`"email": "%s"`, u.Email))
-	userBuf.WriteString(`,`)
-
-	// groups
-	userBuf.WriteString(`"memberOf": [`)
-
-	if len(u.Groups) != 0 {
-		for i, g := range u.Groups {
-			userBuf.WriteString(fmt.Sprintf(`"%sgroup/%s"`, ORSURI, g))
-
-			if i != len(u.Groups)-1 {
-				userBuf.WriteString(`, `)
-			}
-		}
-
-	}
-	userBuf.WriteString(`]`)
-
-	// close quote
-	userBuf.WriteString(`}`)
-
-	out := userBuf.Bytes()
-	return out, err
-}
-
-func (u *User) UnmarshalJSON(data []byte) error {
-	var err error
-
-	aux := struct {
-		Name    string `json:"name"`
-		Email   string `json:"email"`
-		IsAdmin bool   `json:"is_admin"`
-	}{}
-
-	if err = json.Unmarshal(data, &aux); err != nil {
-		return fmt.Errorf("%w: %s", ErrJSONUnmarshal, err.Error())
-	}
-
-	// validate name
-	if aux.Name == "" {
-		return fmt.Errorf("%w: User missing Name", ErrModelMissingField)
-	}
-
-	// validate email
-	if aux.Email == "" {
-		return fmt.Errorf("%w: User missing Email", ErrModelMissingField)
-	}
-
-	matched, err := regexp.MatchString(`^[a-zA-Z0-9-_.]*@[a-zA-Z]*\.[a-zA-Z]*$`, aux.Email)
-	if err != nil {
-		return fmt.Errorf("%w: %s", ErrRegex, err.Error())
-	}
-
-	if !matched {
-		return fmt.Errorf("%w: Invalid Email %s", ErrModelFieldValidation, aux.Email)
-	}
-
-	userId, err := uuid.NewUUID()
-	if err != nil {
-		return fmt.Errorf("%w: %s", ErrUUID, err.Error())
-	}
-
-	u.Id = userId.String()
-	u.Type = TypeUser
-	u.Name = aux.Name
-	u.Email = aux.Email
-	u.IsAdmin = aux.IsAdmin
-
-	return err
-}
-
 func queryUserEmail(email string) (u User, err error) {
 
 	ctx, cancel, client, err := connectMongo()
 	defer cancel()
 
 	if err != nil {
-		err = fmt.Errorf("%w: %s", ErrMongoClient, err.Error())
+		err = fmt.Errorf("%w: %s", errMongoClient, err.Error())
 		return
 	}
 
 	// connect to the user collection
-	collection := client.Database(MongoDatabase).Collection(MongoCollection)
+	collection := client.Database(mongoDatabase).Collection(mongoCollection)
 
-	query := bson.D{{"email", email}, {"@type", TypeUser}}
+	query := bson.D{{"email", email}, {"@type", typeUser}}
 	err = collection.FindOne(ctx, query).Decode(&u)
 
 	// TODO: Error Handling
 	// if decoding error
 	if err == mongo.ErrNoDocuments {
-		err = ErrNoDocument
+		err = errNoDocument
 	}
 
 	return
@@ -176,7 +82,7 @@ func queryUserEmail(email string) (u User, err error) {
 
 func logoutUser(token string) (u User, err error) {
 
-	query := bson.D{{"access_token", token}, {"@type", TypeUser}}
+	query := bson.D{{"access_token", token}, {"@type", typeUser}}
 	update := bson.D{{"$set", bson.D{{"access_token", ""}}  }}
 
 	ctx, cancel, client, err := connectMongo()
@@ -186,7 +92,7 @@ func logoutUser(token string) (u User, err error) {
 		return
 	}
 
-	collection := client.Database(MongoDatabase).Collection(MongoCollection)
+	collection := client.Database(mongoDatabase).Collection(mongoCollection)
 
 	res := collection.FindOneAndUpdate(ctx, query, update)
 
@@ -205,18 +111,18 @@ func listUsers() (u []User, err error) {
 	defer cancel()
 
 	if err != nil {
-		err = fmt.Errorf("%w: %s", ErrMongoClient, err.Error())
+		err = fmt.Errorf("%w: %s", errMongoClient, err.Error())
 		return
 	}
 
-	collection := client.Database(MongoDatabase).Collection(MongoCollection)
+	collection := client.Database(mongoDatabase).Collection(mongoCollection)
 
-	query := bson.D{{"@type", TypeUser}}
+	query := bson.D{{"@type", typeUser}}
 	cur, err := collection.Find(mongoCtx, query, nil)
 	defer cur.Close(mongoCtx)
 
 	if err != nil {
-		err = fmt.Errorf("%w: %s", ErrMongoQuery, err.Error())
+		err = fmt.Errorf("%w: %s", errMongoQuery, err.Error())
 		return
 	}
 
@@ -229,18 +135,18 @@ func listUsers() (u []User, err error) {
 
 }
 
-func (u *User) Create() (err error) {
+func (u *User) create() (err error) {
 
 	ctx, cancel, client, err := connectMongo()
 	defer cancel()
 
 	if err != nil {
-		err = fmt.Errorf("%w: %s", ErrMongoClient, err.Error())
+		err = fmt.Errorf("%w: %s", errMongoClient, err.Error())
 		return
 	}
 
 	// connect to the user collection
-	collection := client.Database(MongoDatabase).Collection(MongoCollection)
+	collection := client.Database(mongoDatabase).Collection(mongoCollection)
 
 	_, err = collection.InsertOne(ctx, u)
 
@@ -248,43 +154,33 @@ func (u *User) Create() (err error) {
 		return
 	}
 
-	if ErrorDocumentExists(err) {
-		err = ErrDocumentExists
+	if errorDocumentExists(err) {
+		err = errDocumentExists
 	}
 
 	return
 }
 
-func (u *User) Get() (err error) {
+func (u *User) get() (err error) {
 
 	ctx, cancel, client, err := connectMongo()
 	defer cancel()
 
 	if err != nil {
-		err = fmt.Errorf("%w: %s", ErrMongoClient, err.Error())
+		err = fmt.Errorf("%w: %s", errMongoClient, err.Error())
 		return
 	}
 
-	collection := client.Database(MongoDatabase).Collection(MongoCollection)
-	err = collection.FindOne(ctx, bson.D{{"@id", u.Id}}).Decode(&u)
+	collection := client.Database(mongoDatabase).Collection(mongoCollection)
+	err = collection.FindOne(ctx, bson.D{{"@id", u.ID}}).Decode(&u)
 
-	return
-}
-
-func (u *User) Delete() (err error) {
-	var b []byte
-	b, err = MongoDeleteOne(u.Id)
-	if err != nil {
-		return
-	}
-
-	err = bson.Unmarshal(b, &u)
 	return
 }
 
 // TODO: (MidPriority) Add to User ListAccess()
 // Return Everything a has adequate permissions to access
-func (u User) ListAccess() (r []Resource, err error) {
+/*
+func (u User) listAccess() (r []Resource, err error) {
 
 	// query
 	// query := bson.D{{""}}
@@ -293,13 +189,13 @@ func (u User) ListAccess() (r []Resource, err error) {
 }
 
 // TODO: (MidPriority) Add to User ListOwned()
-func (u User) ListOwned() (r []Resource, err error) {
+func (u User) listOwned() (r []Resource, err error) {
 	return
 }
 
 // TODO: (MidPriority) Add to User ListPolicies()
 // Return All Policies effecting this user
-func (u User) ListPolicies() (p []Policy, err error) {
+func (u User) listPolicies() (p []Policy, err error) {
 
 	return
 }
@@ -309,9 +205,11 @@ func (u User) ListPolicies() (p []Policy, err error) {
 func (u User) ListChallenges() (c []Challenge, err error) {
 	return
 }
+*/
 
-// POST /user/
-func UserCreate(w http.ResponseWriter, r *http.Request) {
+// UserCreateHandler is the handler for creating a User
+// POST /user/ with JSON body
+func UserCreateHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/ld+json")
 
 	// read and marshal body json into
@@ -342,7 +240,7 @@ func UserCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = u.Create()
+	err = u.create()
 
 	if err == nil {
 		w.WriteHeader(201)
@@ -352,9 +250,9 @@ func UserCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Error for when the User with u.Id Already Exists
-	if errors.Is(err, ErrDocumentExists) {
+	if errors.Is(err, errDocumentExists) {
 		w.WriteHeader(400)
-		fmt.Fprintf(w, `{"error": "User Already Exists" ,"@id": "%s"}`, u.Id)
+		fmt.Fprintf(w, `{"error": "User Already Exists" ,"@id": "%s"}`, u.ID)
 		return
 	}
 
@@ -365,8 +263,9 @@ func UserCreate(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// UserListHandler is the handler
 // GET /user/
-func UserList(w http.ResponseWriter, r *http.Request) {
+func UserListHandler(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	var userList []User
@@ -391,16 +290,17 @@ func UserList(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+// UserGetHandler gets the details for a single user
 // GET /user/:userID
-func UserGet(w http.ResponseWriter, r *http.Request) {
+func UserGetHandler(w http.ResponseWriter, r *http.Request) {
 	var u User
 	var err error
 
 	// get the user id from the route
 	params := httprouter.ParamsFromContext(r.Context())
 
-	u.Id = params.ByName("userID")
-	err = u.Get()
+	u.ID = params.ByName("userID")
+	err = u.get()
 
 	if err != nil {
 		return
@@ -408,34 +308,6 @@ func UserGet(w http.ResponseWriter, r *http.Request) {
 
 	responseBytes, err := json.Marshal(u)
 
-	if err != nil {
-		return
-	}
-
-	w.WriteHeader(200)
-	w.Header().Set("Content-Type", "application/ld+json")
-	w.Write(responseBytes)
-	return
-
-}
-
-// Delete /user/:userID
-func UserDelete(w http.ResponseWriter, r *http.Request) {
-
-	var deletedUser User
-	var err error
-
-	// get the user id from the route
-	params := httprouter.ParamsFromContext(r.Context())
-
-	deletedUser.Id = params.ByName("userID")
-	err = deletedUser.Delete()
-
-	if err != nil {
-		return
-	}
-
-	responseBytes, err := json.Marshal(deletedUser)
 	if err != nil {
 		return
 	}

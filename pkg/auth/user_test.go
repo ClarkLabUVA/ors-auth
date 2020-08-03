@@ -10,19 +10,19 @@ import (
 
 func TestUserLogout(t *testing.T) {
 
-	access_token := "access"
+	accessToken := "access"
 	// setup test
 	u := User{
-		Id: "Test",
-		Type: TypeUser,
+		ID: "Test",
+		Type: typeUser,
 		Name: "TestUser",
 		Email: "test@example.org",
 		IsAdmin: false,
-		AccessToken: access_token,
+		AccessToken: accessToken,
 		RefreshToken: "refresh",
 	}
 
-	err := u.Create()
+	err := u.create()
 
 	if err != nil {
 		t.Fatalf("Failed Setup: %s", err.Error())
@@ -30,7 +30,7 @@ func TestUserLogout(t *testing.T) {
 
 
 	t.Run("Success", func(t *testing.T){
-		_, err := logoutUser(access_token)
+		_, err := logoutUser(accessToken)
 
 		if err != nil {
 			t.Errorf("Failed Logout: %s", err.Error())
@@ -49,22 +49,19 @@ func TestUserLogout(t *testing.T) {
 	})
 
 	t.Run("AlreadyLoggedOut", func(t *testing.T){
-		found, err := logoutUser(access_token)
+		found, err := logoutUser(accessToken)
 
 		if err == nil {
 			t.Errorf("Found User with Expired Token: %+v", found)
 		}
 	})
 
-	// tear down tests
-	u.Delete()
-
 }
 
 func TestUserHandlers(t *testing.T) {
 
 	u := User{
-		Id:      "orcid:1234-1234",
+		ID:      "orcid:1234-1234",
 		Name:    "Joe Schmoe",
 		Email:   "joe.schmoe@example.org",
 		IsAdmin: false,
@@ -85,7 +82,7 @@ func TestUserHandlers(t *testing.T) {
 		request := httptest.NewRequest("POST", "http://localhost:8080/user", requestBody)
 
 		rr := httptest.NewRecorder()
-		UserCreate(rr, request)
+		UserCreateHandler(rr, request)
 
 		resp := rr.Result()
 		body, _ := ioutil.ReadAll(resp.Body)
@@ -103,7 +100,7 @@ func TestUserHandlers(t *testing.T) {
 		request := httptest.NewRequest("GET", "http://localhost:8080/user", nil)
 
 		rr := httptest.NewRecorder()
-		UserList(rr, request)
+		UserListHandler(rr, request)
 
 		if rr.Code != 200 {
 			t.Fatalf("Failed To List Users Successfully")
@@ -114,43 +111,28 @@ func TestUserHandlers(t *testing.T) {
 	t.Run("GetUser", func(t *testing.T) {
 
 		// create a request to create a user
-		request := httptest.NewRequest("GET", "http://localhost:8080/user/"+u.Id, nil)
+		request := httptest.NewRequest("GET", "http://localhost:8080/user/"+u.ID, nil)
 
 		rr := httptest.NewRecorder()
-		UserGet(rr, request)
+		UserGetHandler(rr, request)
 
 		if rr.Code != 200 {
 			t.Fatalf("Failed to Successfully Create User")
 		}
 
-	})
-
-	t.Run("DeleteUser", func(t *testing.T) {
-
-		// create a request to create a user
-		request := httptest.NewRequest("DELETE", "http://localhost:8080/user/"+u.Id, nil)
-
-		rr := httptest.NewRecorder()
-		UserDelete(rr, request)
-
-		if rr.Code != 200 {
-			t.Fatalf("Failed to Successfully Create User")
-		}
 	})
 
 }
 
 func TestUserMethods(t *testing.T) {
 
-	var TestUserId = "orcid:1234-1234-1234-1234"
 	var TestUser User
 
-	TestUser.Id = "orcid:1234-1234-1234-1234"
-	TestUser.Delete()
+	TestUser.ID = "orcid:1234-1234-1234-1234"
 
 	TestUser = User{
-		Id:      "orcid:1234-1234-1234-1234",
-		Type: TypeUser,
+		ID:      "orcid:1234-1234-1234-1234",
+		Type: 	typeUser,
 		Name:    "Joe Schmoe",
 		Email:   "JoeSchmoe@example.org",
 		IsAdmin: false,
@@ -159,7 +141,7 @@ func TestUserMethods(t *testing.T) {
 
 	t.Run("Create", func(t *testing.T) {
 
-		err := TestUser.Create()
+		err := TestUser.create()
 
 		if err != nil {
 			t.Errorf("Failed to Create the User: %s", err.Error())
@@ -169,8 +151,8 @@ func TestUserMethods(t *testing.T) {
 
 	t.Run("Get", func(t *testing.T) {
 
-		findUser := User{Id: TestUserId}
-		err := findUser.Get()
+		findUser := User{ID: TestUser.ID}
+		err := findUser.get()
 
 		if err != nil {
 			t.Errorf("Failed to Get User: %s", err.Error())
@@ -204,21 +186,6 @@ func TestUserMethods(t *testing.T) {
 		t.Logf("Found Users: %+v", userList)
 
 	})
-
-	t.Run("Delete", func(t *testing.T) {
-
-		delUser := User{Id: TestUserId}
-		err := delUser.Delete()
-
-		if err != nil {
-			t.Errorf("Failed to Delete User: %s", err.Error())
-		}
-
-		t.Logf("Deleted User: %+v", delUser)
-
-	})
-
-	TestUser.Delete()
 
 }
 
@@ -284,7 +251,7 @@ func TestUserJSONUnmarshal(t *testing.T) {
 func TestUserJSONMarshal(t *testing.T) {
 
 	u := User{
-		Id:      "max",
+		ID:      "max",
 		Email:   "mlev@example.org",
 		Name:    "maxwell",
 		Groups:  []string{"LevinsonFam", "Bagel Enthusiast"},
