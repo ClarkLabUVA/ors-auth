@@ -17,9 +17,9 @@ func main() {
 	var scopes = "urn:globus:auth:scope:auth.globus.org:view_identity_set+urn:globus:auth:scope:auth.globus.org:view_identities+openid+email+profile"
 
 	globusClient := auth.GlobusAuthClient{
-		ClientID:     *globusClientID,
-		ClientSecret: *globusClientSecret,
-		RedirectURL:  *redirectURL,
+		ClientID:     globusClientID,
+		ClientSecret: globusClientSecret,
+		RedirectURL:  redirectURL,
 		Scopes:       scopes,
 	}
 
