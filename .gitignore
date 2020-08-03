@@ -4,12 +4,9 @@
 bin/*
 bin/
 main
-ors-auth/*
-ors-auth
 notes.md
 *.cert
 *.key
-auth
 Makefile
 client/__pycache__
 client/*.ipynb
