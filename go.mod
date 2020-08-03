@@ -1,4 +1,4 @@
-module github.com/ClarkLabUVA/auth
+module github.com/fairscape/auth
 
 go 1.14
 
