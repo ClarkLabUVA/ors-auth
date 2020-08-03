@@ -1,7 +1,6 @@
 package server 
 
 import (
-	"github.com/julienschmidt/httprouter"
 	"log"
 	"net/http"
 	"github.com/fairscape/auth/pkg/auth"
