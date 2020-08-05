@@ -1,4 +1,4 @@
-package server 
+package main 
 
 import (
 	"log"
@@ -12,7 +12,7 @@ func main() {
 
 	var globusClientID = os.Getenv("GLOBUS_CLIENT_ID")
 	var globusClientSecret = os.Getenv("GLOBUS_CLIENT_SECRET")
-	var redirectURL = os.Getenv("REDIRECT_URL")
+	var redirectURL = os.Getenv("GLOBUS_REDIRECT_URL")
 	
 	var scopes = "urn:globus:auth:scope:auth.globus.org:view_identity_set+urn:globus:auth:scope:auth.globus.org:view_identities+openid+email+profile"
 
@@ -26,22 +26,22 @@ func main() {
 	router := http.NewServeMux()
 	
 	// any method
-	router.HandleFunc("/oauth/inspect", globusClient.InspectHandler)
+	router.HandleFunc("/inspect", globusClient.InspectHandler)
 
 	// GET
-	router.HandleFunc("/oauth/login", globusClient.GrantHandler)
+	router.HandleFunc("/login", globusClient.GrantHandler)
 
 	// GET /oauth/token
 	// handle the code grant from 
-	router.HandleFunc("/oauth/token", globusClient.CodeHandler)
+	router.HandleFunc("/token", globusClient.CodeHandler)
 
 	// POST /oauth/logout
 	// invalidate a current session within globus auth and locally
-	router.HandleFunc("/oauth/logout", globusClient.RevokeHandler)
+	router.HandleFunc("/logout", globusClient.RevokeHandler)
 
 	// POST /oauth/refresh  
 	// using refresh token and grant a new access token
-	router.HandleFunc("/oauth/refresh", globusClient.RefreshHandler)
+	router.HandleFunc("/refresh", globusClient.RefreshHandler)
 
 	/*
 		router.Handler("POST", "/user", http.HandlerFunc(UserCreate))
@@ -70,6 +70,6 @@ func main() {
 		router.Handler("DELETE", "/group/:ID", http.HandlerFunc(GroupDelete))
 	*/
 
-	log.Fatal(http.ListenAndServe("0.0.0.0:8080", router))
+	log.Fatal(http.ListenAndServe("0.0.0.0:80", router))
 
 }
