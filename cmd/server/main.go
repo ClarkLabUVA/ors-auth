@@ -1,8 +1,9 @@
-package main 
+package main
 
 import (
 	"log"
 	"net/http"
+	"github.com/julienschmidt/httprouter"
 	"github.com/fairscape/auth/pkg/auth"
 	"os"
 )
@@ -13,7 +14,7 @@ func main() {
 	var globusClientID = os.Getenv("GLOBUS_CLIENT_ID")
 	var globusClientSecret = os.Getenv("GLOBUS_CLIENT_SECRET")
 	var redirectURL = os.Getenv("GLOBUS_REDIRECT_URL")
-	
+
 	var scopes = "urn:globus:auth:scope:auth.globus.org:view_identity_set+urn:globus:auth:scope:auth.globus.org:view_identities+openid+email+profile"
 
 	globusClient := auth.GlobusAuthClient{
@@ -23,32 +24,22 @@ func main() {
 		Scopes:       scopes,
 	}
 
-	router := http.NewServeMux()
-	
-	// any method
-	router.HandleFunc("/inspect", globusClient.InspectHandler)
+	router := httprouter.New()
 
-	// GET
-	router.HandleFunc("/login", globusClient.GrantHandler)
+	// oauth token routes
+	router.Handler("POST", "/inspect", http.HandlerFunc(globusClient.InspectHandler))
+	router.Handler("GET", "/token", http.HandlerFunc(globusClient.CodeHandler))
+	router.Handler("POST", "/refresh", http.HandlerFunc(globusClient.RefreshHandler))
+	router.Handler("GET", "/login", http.HandlerFunc(globusClient.GrantHandler))
+	router.Handler("POST", "/logout", http.HandlerFunc(globusClient.RevokeHandler))
 
-	// GET /oauth/token
-	// handle the code grant from 
-	router.HandleFunc("/token", globusClient.CodeHandler)
-
-	// POST /oauth/logout
-	// invalidate a current session within globus auth and locally
-	router.HandleFunc("/logout", globusClient.RevokeHandler)
-
-	// POST /oauth/refresh  
-	// using refresh token and grant a new access token
-	router.HandleFunc("/refresh", globusClient.RefreshHandler)
+	// user managment routes
+	router.Handler("POST", "/user", http.HandlerFunc(auth.UserCreateHandler))
+	router.Handler("GET", "/user", http.HandlerFunc(auth.UserListHandler))
+	router.Handler("GET", "/user/:userID", http.HandlerFunc(auth.UserGetHandler))
+	router.Handler("DELETE", "/user/:userID", http.HandlerFunc(auth.UserDeleteHandler))
 
 	/*
-		router.Handler("POST", "/user", http.HandlerFunc(UserCreate))
-		router.Handler("GET", "/user", http.HandlerFunc(UserList))
-		router.Handler("GET", "/user/:userID", http.HandlerFunc(UserGet))
-		router.Handler("DELETE", "/user/:userID", http.HandlerFunc(UserDelete))
-
 		router.Handler("POST", "/challenge", http.HandlerFunc(ChallengeEvaluate))
 		router.Handler("GET", "/challenge", http.HandlerFunc(ChallengeList))
 
