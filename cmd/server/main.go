@@ -70,6 +70,6 @@ func main() {
 		router.Handler("DELETE", "/group/:ID", http.HandlerFunc(GroupDelete))
 	*/
 
-	log.Fatal(http.ListenAndServe("0.0.0.0:80", router))
+	log.Fatal(http.ListenAndServe(":80", router))
 
 }
