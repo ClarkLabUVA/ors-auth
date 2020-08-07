@@ -14,7 +14,7 @@ import (
 	options "go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func init() {
+func createUserIndex() {
 
 	ctx, cancel, client, err := connectMongo()
 	defer cancel()
