@@ -1,15 +1,22 @@
 package auth
 
 import (
-	"net/http"
+	//"net/http"
 	"context"
 	"errors"
 	"reflect"
 	"time"
 	mongo "go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"log"
 	"os"
+    "github.com/rs/zerolog"
+    "github.com/rs/zerolog/log"
+
+)
+
+var (
+    mongoLogger   = zerolog.New(os.Stderr).With().Timestamp().Str("backend", "mongo").Logger()
+    requestLogger = zerolog.New(os.Stderr).With().Timestamp().Str("backend", "request").Logger()
 )
 
 var (
@@ -45,6 +52,8 @@ func connectMongo() (ctx context.Context, cancel context.CancelFunc, client *mon
 	// establish connection with mongo backend
 	client, err = mongo.NewClient(options.Client().ApplyURI(mongoURI))
 	if err != nil {
+        // log error
+        mongoLogger.Error().Err(err).Msg("Failed to Create a New Client")
 		return
 	}
 
@@ -53,6 +62,11 @@ func connectMongo() (ctx context.Context, cancel context.CancelFunc, client *mon
 
 	// connect to the client
 	err = client.Connect(ctx)
+
+    if err != nil {
+        mongoLogger.Error().Err(err).Msg("Failed to Connect to Client")
+    }
+
 	return
 }
 
@@ -88,10 +102,4 @@ func errorDocumentExists(err error) bool {
 	}
 
 	return false
-}
-
-// TODO: (LowPriority) Write a Generic Error Handler to return a JSON error
-func handleErrors(err error, w http.ResponseWriter, r *http.Request) {
-	//
-
 }
