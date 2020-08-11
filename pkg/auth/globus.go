@@ -158,8 +158,8 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 
 	authCookie := http.Cookie{
 		Name: "fairscapeAuth",
-		Value: token.Token,
-		Expiration: time.Unix(introspectedToken.Expiration, 0),
+		Value: token.AccessToken,
+		Expires: time.Unix(introspectedToken.Expiration, 0),
 	}
 
 	http.SetCookie(w, &authCookie)
