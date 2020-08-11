@@ -8,7 +8,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"log"
 	"fmt"
-	"github.com/google/uuid"	
+	"github.com/google/uuid"
 	bson "go.mongodb.org/mongo-driver/bson"
 	mongo "go.mongodb.org/mongo-driver/mongo"
 	options "go.mongodb.org/mongo-driver/mongo/options"
@@ -181,6 +181,23 @@ func (u *User) get() (err error) {
 	return
 }
 
+
+func (u *User) delete() (err error) {
+
+	ctx, cancel, client, err := connectMongo()
+	defer cancel()
+
+	if err != nil {
+		err = fmt.Errorf("%w: %s", errMongoClient, err.Error())
+		return
+	}
+
+	collection := client.Database(mongoDatabase).Collection(mongoCollection)
+	err = collection.FindOneAndDelete(ctx, bson.D{{"@id", u.ID}}).Decode(&u)
+
+	return
+}
+
 // TODO: (MidPriority) Add to User ListAccess()
 // Return Everything a has adequate permissions to access
 /*
@@ -239,7 +256,7 @@ func UserCreateHandler(w http.ResponseWriter, r *http.Request) {
 	err = json.Unmarshal(requestBody, &u)
 
 	if err != nil {
-		w.WriteHeader(400)
+		w.WriteHeader(500)
 		fmt.Fprintf(w, `{"message": "Failed to Unmarshal Request JSON", "error": "%s"}`, err.Error() )
 		return
 	}
@@ -313,6 +330,37 @@ func UserGetHandler(w http.ResponseWriter, r *http.Request) {
 	responseBytes, err := json.Marshal(u)
 
 	if err != nil {
+		return
+	}
+
+	w.WriteHeader(200)
+	w.Header().Set("Content-Type", "application/ld+json")
+	w.Write(responseBytes)
+	return
+
+}
+
+// User Delete Handler
+// DELETE /user/:userID
+func UserDeleteHandler(w http.ResponseWriter, r *http.Request) {
+	var u User
+	var err error
+
+	// get the user id from the route
+	params := httprouter.ParamsFromContext(r.Context())
+
+	u.ID = params.ByName("userID")
+	err = u.delete()
+
+	if err != nil {
+		w.WriteHeader(500)
+		return
+	}
+
+	responseBytes, err := json.Marshal(u)
+
+	if err != nil {
+		w.WriteHeader(500)
 		return
 	}
 
