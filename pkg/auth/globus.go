@@ -180,8 +180,8 @@ func (g GlobusAuthClient) RevokeHandler(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Content-Type", "application/json")
 
 	// get the bearer token
-	token := strings.TrimPrefix("Bearer ", r.Header.Get("Authorization"))
-	u, err := g.revokeToken(token)
+	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	_, err := g.revokeToken(token)
 
 	if err != nil {
 		w.Write([]byte(`{"message": "Globus Token Revokation Failed", "error": "` + err.Error() + `"}`))
@@ -189,40 +189,59 @@ func (g GlobusAuthClient) RevokeHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	responseBody, _ := json.Marshal(u)
-	w.Write(responseBody)
+	// responseBody, _ := json.Marshal(u)
+	// w.Write(responseBody)
+	w.Write([]byte(`{"message": "logged user out"}`))
 	w.WriteHeader(200)
 }
 
 // InspectHandler is the http.HandlerFunc for inspecting tokens from globus and check membership
 func (g GlobusAuthClient) InspectHandler(w http.ResponseWriter, r *http.Request) {
-	
+
+	var err error
+	var introspectedToken GlobusIntrospectedToken
+	var user User
+	var tok string
+	var responseBody []byte
+
 	// get bearer token from authorization header
-	token := strings.TrimPrefix("Bearer ", r.Header.Get("Authorization"))
+	response := make(map[string]interface{})
+	tok = strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+
 
 	// introspect globus token
-	introspectedToken, err := g.introspectToken(token)
+	introspectedToken, err = g.introspectToken(tok)
 
 	if err != nil {
-		w.Write([]byte(err.Error()))
+		response["introspectedToken"] = introspectedToken
+		response["error"] = err.Error()
+		responseBody, _ = json.Marshal(response)
+		w.Write(responseBody)
 		w.WriteHeader(401)
 		return
 	}
 
 	// check if user email is in users
-	u, err := introspectedToken.findUser()
+	user, err = queryUserEmail(introspectedToken.Email)
 
 	// if not return 404 user not found
 	if err != nil {
-		w.Write([]byte(err.Error()))
+		response["introspectedToken"] = introspectedToken
+		response["error"] = err.Error()
+		responseBody, _ = json.Marshal(response)
+		w.Write(responseBody)
 		w.WriteHeader(401)
 		return
 	}
 
 
 	// else return 204 set response headers
-	w.Header().Set("X-Client-ID", u.ID)
+	w.Header().Set("X-Client-ID", user.ID)
 	w.WriteHeader(204)
+	response["introspectedToken"] = introspectedToken
+	response["user"] = user
+	responseBody, _ = json.Marshal(response)
+	w.Write(responseBody)
 	return
 
 
@@ -271,7 +290,7 @@ func (g GlobusAuthClient) revokeToken(token string) (u User, err error) {
 		return
 	}
 
-	u, err = logoutUser(token)
+	//u, err = logoutUser(token)
 
 	return
 
