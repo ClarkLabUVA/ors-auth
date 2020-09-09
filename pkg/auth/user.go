@@ -12,7 +12,24 @@ import (
 	bson "go.mongodb.org/mongo-driver/bson"
 	mongo "go.mongodb.org/mongo-driver/mongo"
 	options "go.mongodb.org/mongo-driver/mongo/options"
+
+    "github.com/dgrijalva/jwt-go"
+    "time"
+    "os"
 )
+
+var jwtSecret []byte
+
+func init() {
+
+    jwtENV, ok := os.LookupEnv("JWT_SECRET")
+
+    if !ok {
+        jwtENV = "test secret"
+    }
+
+    jwtSecret = []byte(jwtENV)
+}
 
 func createUserIndex() {
 
@@ -49,12 +66,42 @@ type User struct {
 	Type    string   `json:"@type" bson:"@type"`
 	Name    string   `json:"name" bson:"name"`
 	Email   string   `json:"email" bson:"email"`
-	IsAdmin bool     `json:"is_admin" bson:"is_admin"`
+	Role    string   `json:"role" bson:"role"`
 	Groups  []string `json:"groups" bson:"groups"`
-	Session string   `json:"session" bson:"session"`
 	AccessToken  string  `json:"access_token" bson:"access_token"`
 	RefreshToken string	`json:"refresh_token" bson:"refresh_token"`
 }
+
+// loginUser creates a JWT for the user for use with ORS services
+// it also stores this token within the user record for easy verification
+func (u *User) newSession() (err error) {
+
+    now := time.Now()
+
+    accessToken := jwt.NewWithClaims(
+        jwt.SigningMethodHS256,
+        jwt.MapClaims{
+            "sub": u.ID,
+            "iat": now.Unix(),
+            "exp": now.Add(time.Hour * 48).Unix(),
+            "aud": "https://fairscape.org", //audience allowed to access the services
+            "name": u.Name,
+            "role": u.Role,
+            "groups": u.Groups
+        }
+    )
+
+    tokenString, err = token.SignedString(jwtSecret)
+
+    if err != nil {
+        return
+    }
+
+    u.AccessToken = tokenString
+
+    return
+}
+
 
 func queryUserEmail(email string) (u User, err error) {
 
@@ -81,6 +128,7 @@ func queryUserEmail(email string) (u User, err error) {
 	return
 }
 
+
 func logoutUser(token string) (u User, err error) {
 
 	query := bson.D{{"access_token", token}, {"@type", typeUser}}
@@ -105,6 +153,7 @@ func logoutUser(token string) (u User, err error) {
 	return
 
 }
+
 
 func listUsers() (u []User, err error) {
 
@@ -136,6 +185,7 @@ func listUsers() (u []User, err error) {
 
 }
 
+
 func (u *User) create() (err error) {
 
 	uid, err := uuid.NewRandom()
@@ -165,6 +215,7 @@ func (u *User) create() (err error) {
 	return
 }
 
+
 func (u *User) get() (err error) {
 
 	ctx, cancel, client, err := connectMongo()
@@ -179,6 +230,22 @@ func (u *User) get() (err error) {
 	err = collection.FindOne(ctx, bson.D{{"@id", u.ID}}).Decode(&u)
 
 	return
+}
+
+func (u *User) updateToken() (err error) {
+
+	ctx, cancel, client, err := connectMongo()
+	defer cancel()
+
+	// connect to the user collection
+	collection := client.Database(mongoDatabase).Collection(mongoCollection)
+
+    filter := bson.d{{"@id", u.ID}}
+    update := bson.d{{"$set", bson.d{{"access_token", u.AccessToken}} }}
+
+	_, err = collection.UpdateOne(ctx, filter, update)
+
+    return
 }
 
 
