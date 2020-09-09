@@ -181,7 +181,7 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 
 	http.SetCookie(w, &authCookie)
 
-	response["user"] = user
+	response["token"] = user.AccessToken
 	//response["introspected"] = introspectedToken
 	//response["identities"] = identitiesResponse.Identities
 
@@ -512,7 +512,6 @@ func (intro GlobusIntrospectedToken) registerUser() (u User, err error) {
 	u.ID = userId.String()
 	u.Name = intro.Name
 	u.Email = intro.Email
-	u.IsAdmin = false
 
 	err = u.create()
 

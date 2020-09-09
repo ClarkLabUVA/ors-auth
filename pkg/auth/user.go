@@ -87,17 +87,11 @@ func (u *User) newSession() (err error) {
             "aud": "https://fairscape.org", //audience allowed to access the services
             "name": u.Name,
             "role": u.Role,
-            "groups": u.Groups
-        }
+            "groups": u.Groups,
+        },
     )
 
-    tokenString, err = token.SignedString(jwtSecret)
-
-    if err != nil {
-        return
-    }
-
-    u.AccessToken = tokenString
+    u.AccessToken, err = accessToken.SignedString(jwtSecret)
 
     return
 }
@@ -240,8 +234,8 @@ func (u *User) updateToken() (err error) {
 	// connect to the user collection
 	collection := client.Database(mongoDatabase).Collection(mongoCollection)
 
-    filter := bson.d{{"@id", u.ID}}
-    update := bson.d{{"$set", bson.d{{"access_token", u.AccessToken}} }}
+    filter := bson.D{{"@id", u.ID}}
+    update := bson.D{{"$set", bson.D{{"access_token", u.AccessToken}} }}
 
 	_, err = collection.UpdateOne(ctx, filter, update)
 
