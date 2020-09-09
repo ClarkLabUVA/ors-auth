@@ -134,7 +134,6 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 			response["message"] = "No user record found"
 			response["error"] = err.Error()
 			response["status_code"] = 404
-			response["globus_token"] = introspectedToken
 
 			encodedResponse, _ := json.Marshal(response)
 			w.Write(encodedResponse)
@@ -146,7 +145,6 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 		response["message"] = "Error Querying Database"
 		response["error"] = err.Error()
 		response["status_code"] = 500
-		response["globus_token"] = introspectedToken
 
 		encodedResponse, _ := json.Marshal(response)
 		w.Write(encodedResponse)
@@ -155,11 +153,27 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	// add a a cookie with the token value
+    // create a new session
+    err = user.newSession()
+    
+    if err != nil { 
 
+		response["message"] = "Error creating new session token"
+		response["error"] = err.Error()
+		response["status_code"] = 500
+
+		encodedResponse, _ := json.Marshal(response)
+		w.Write(encodedResponse)
+		w.WriteHeader(500)
+		return
+
+    }
+
+
+	// add a a cookie with the token value
 	authCookie := http.Cookie{
 		Name: "fairscapeAuth",
-		Value: token.AccessToken,
+		Value: user.AccessToken,
 		Expires: time.Unix(int64(introspectedToken.Expiration), 0),
         Path: "/",
         Secure: false,
@@ -168,7 +182,6 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &authCookie)
 
 	response["user"] = user
-	response["access_token"] = token
 	//response["introspected"] = introspectedToken
 	//response["identities"] = identitiesResponse.Identities
 
