@@ -39,10 +39,6 @@ func main() {
 	router.Handler("GET", "/user/:userID", http.HandlerFunc(auth.UserGetHandler))
 	router.Handler("DELETE", "/user/:userID", http.HandlerFunc(auth.UserDeleteHandler))
 
-    /*
-    router.Handler("POST", "/challenge", http.HandlerFunc(auth.ChallengeEvaluate))
-    router.Handler("GET", "/challenge", http.HandlerFunc(auth.ChallengeList))
-
     router.Handler("POST", "/resource", http.HandlerFunc(auth.ResourceCreate))
     router.Handler("GET", "/resource", http.HandlerFunc(auth.ResourceList))
     router.Handler("GET", "/resource/:ID", http.HandlerFunc(auth.ResourceGet))
@@ -59,7 +55,6 @@ func main() {
     router.Handler("GET", "/group/:ID", http.HandlerFunc(auth.GroupGet))
     router.Handler("PUT", "/group/:ID", http.HandlerFunc(auth.GroupUpdate))
     router.Handler("DELETE", "/group/:ID", http.HandlerFunc(auth.GroupDelete))
-    */
 
 	log.Fatal(http.ListenAndServe(":80", router))
 
