@@ -8,10 +8,13 @@ import (
 
 	"fmt"
 	bson "go.mongodb.org/mongo-driver/bson"
+
+	"github.com/julienschmidt/httprouter"
 )
 
+// Policy is a structure for policy data and associated operations
 type Policy struct {
-	Id        string   `json:"@id" bson:"@id"`
+	ID        string   `json:"@id" bson:"@id"`
 	Type      string   `json:"@type" bson:"@type"`
 	Resource  string   `json:"resource" bson:"resource"`
 	Principal []string `json:"principal" bson:"principal"`
@@ -20,21 +23,17 @@ type Policy struct {
 	Issuer    string   `json:"issuer" bson:"issuer"`
 }
 
-func (p Policy) ID() string {
-	return p.Id
-}
-
 func listPolicies() (p []Policy, err error) {
 
 	mongoCtx, cancel, client, err := connectMongo()
 	defer cancel()
 
 	if err != nil {
-		err = fmt.Errorf("MongoDB: %w: %s", ErrMongoClient, err.Error())
+		err = fmt.Errorf("MongoDB: %w: %s", errMongoClient, err.Error())
 		return
 	}
 
-	collection := client.Database(MongoDatabase).Collection(MongoCollection)
+	collection := client.Database(mongoDatabase).Collection(mongoCollection)
 
 	query := bson.D{{"@type", "Policy"}}
 	cur, err := collection.Find(mongoCtx, query, nil)
@@ -52,7 +51,7 @@ func listPolicies() (p []Policy, err error) {
 
 }
 
-func (p Policy) Create() error {
+func (p Policy) create() error {
 
 	var err error
 
@@ -61,11 +60,11 @@ func (p Policy) Create() error {
 	defer cancel()
 
 	if err != nil {
-		return fmt.Errorf("%w: %s", ErrMongoClient, err.Error())
+		return fmt.Errorf("%w: %s", errMongoClient, err.Error())
 	}
 
 	// connect to collection
-	collection := client.Database(MongoDatabase).Collection(MongoCollection)
+	collection := client.Database(mongoDatabase).Collection(mongoCollection)
 
 	// prove resource exists
 	var r Resource
@@ -89,36 +88,47 @@ func (p Policy) Create() error {
 	return nil
 }
 
-func (p *Policy) Get() error {
+func (p *Policy) get() error {
 
-	var b []byte
-	var err error
+	ctx, cancel, client, err := connectMongo()
+	defer cancel()
 
-	b, err = MongoFindOne(p.Id)
 	if err != nil {
+		err = fmt.Errorf("%w: %s", errMongoClient, err.Error())
 		return err
 	}
 
-	err = bson.Unmarshal(b, &p)
+	collection := client.Database(mongoDatabase).Collection(mongoCollection)
+	err = collection.FindOne(ctx, bson.D{{"@id", p.ID}}).Decode(&p)
+
 	return err
 
 }
 
-func (p *Policy) Delete() error {
+func (p *Policy) delete() error {
 
-	var b []byte
-	var err error
+	ctx, cancel, client, err := connectMongo()
+	defer cancel()
 
-	b, err = MongoDeleteOne(p.Id)
 	if err != nil {
+		err = fmt.Errorf("%w: %s", errMongoClient, err.Error())
 		return err
 	}
 
-	err = bson.Unmarshal(b, &p)
+	collection := client.Database(mongoDatabase).Collection(mongoCollection)
+	err = collection.FindOneAndDelete(ctx, bson.D{{"@id", p.ID}}).Decode(&p)
+
 	return err
 }
 
 
+// TODO
+func (p *Policy) update() error { 
+	return nil
+}
+
+
+// PolicyCreate is the http handler for the api opertaion for creating a policy
 func PolicyCreate(w http.ResponseWriter, r *http.Request) {
 
 	// read and marshal body json into
@@ -135,7 +145,7 @@ func PolicyCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = json.Unmarshal(requestBody, &r)
+	err = json.Unmarshal(requestBody, &p)
 
 	if err != nil {
 		w.WriteHeader(400)
@@ -144,7 +154,7 @@ func PolicyCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = p.Create()
+	err = p.create()
 
 	if err == nil {
 		w.WriteHeader(201)
@@ -155,10 +165,10 @@ func PolicyCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Error for when the User with u.Id Already Exists
-	if errors.Is(err, ErrDocumentExists) {
+	if errors.Is(err, errDocumentExists) {
 		w.WriteHeader(400)
 		w.Header().Set("Content-Type", "application/ld+json")
-		w.Write([]byte(`{"error": "User Already Exists" ,"@id": "` + p.Id + `"}`))
+		w.Write([]byte(`{"error": "User Already Exists" ,"@id": "` + p.ID + `"}`))
 		return
 	}
 
@@ -170,14 +180,104 @@ func PolicyCreate(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// TODO: (LowPriority) Write Handler GetPolicy
-func PolicyGet(w http.ResponseWriter, r *http.Request) {}
 
-// TODO: (LowPriority) Write Handler PolicyUpdate
-func PolicyUpdate(w http.ResponseWriter, r *http.Request) {}
+// PolicyGet is the http handler for the retrieval of a policy by the 
+func PolicyGet(w http.ResponseWriter, r *http.Request) {
 
-// TODO: (LowPriority) Write Handler PolicyDelete
-func PolicyDelete(w http.ResponseWriter, r *http.Request) {}
+	var p Policy
+	var err error
 
-// TODO: (LowPriority) Write Handler PolicyList; filter by principal or resource as query params
+	// get the user id from the route
+	params := httprouter.ParamsFromContext(r.Context())
+
+	p.ID = params.ByName("policyID")
+	err = p.get()
+
+	if err != nil {
+		// TODO: error handling for p.get() 
+		return
+	}
+
+	responseBytes, err := json.Marshal(p)
+
+	if err != nil {
+		// TODO: error handling for json marshal
+		return
+	}
+
+	w.WriteHeader(200)
+	w.Header().Set("Content-Type", "application/ld+json")
+	w.Write(responseBytes)
+	return
+}
+
+
+// PolicyDelete is the http handler used for deleting a single policy by ID
+func PolicyDelete(w http.ResponseWriter, r *http.Request) {
+
+	var p Policy
+	var err error
+
+	// get the user id from the route
+	params := httprouter.ParamsFromContext(r.Context())
+
+	p.ID = params.ByName("policyID")
+	err = p.delete()
+
+	if err != nil {
+		// TODO: error handling for p.get() 
+		return
+	}
+
+	responseBytes, err := json.Marshal(p)
+
+	if err != nil {
+		// TODO: error handling for json marshal
+		return
+	}
+
+	w.WriteHeader(200)
+	w.Header().Set("Content-Type", "application/ld+json")
+	w.Write(responseBytes)
+	return
+
+
+}
+
+
+// PolicyList is the http handler for listing all policies
 func PolicyList(w http.ResponseWriter, r *http.Request) {}
+
+
+
+// PolicyUpdate is the http handler for updating policy data, such as adding users
+// TODO: (LowPriority) Write Handler PolicyUpdate
+func PolicyUpdate(w http.ResponseWriter, r *http.Request) {
+
+	var p Policy
+	var err error
+	var requestBody []byte
+
+	// get the user id from the route
+	params := httprouter.ParamsFromContext(r.Context())
+
+
+	requestBody, err = ioutil.ReadAll(r.Body)	
+
+	if err != nil {
+		return
+	}
+
+	err = json.Unmarshal(requestBody, &p)
+
+	if err != nil {
+		return
+	}
+
+
+	p.ID = params.ByName("policyID")
+	err = p.update()
+
+	return
+
+}

@@ -8,68 +8,70 @@ import (
 
 	"fmt"
 	bson "go.mongodb.org/mongo-driver/bson"
+		
+	"github.com/julienschmidt/httprouter"
 )
 
 
+// Resource is a structure for documenting entities contained in the framework
 type Resource struct {
-	Id    string `json:"@id" bson:"@id"`
-	Type  string `json:"@type" bson:"@type"`
+	ID    string `json:"@id" bson:"@id"`
+	Type  string `json:"@type" bson:"@type"` 
 	Owner string `json:"owner" bson:"owner"`
 }
 
-func (r Resource) ID() string {
-	return r.Id
-}
-
-func (res Resource) Create() error {
+func (r *Resource) create() error {
 
 	var err error
 
-	res.Type = "Resource"
+	r.Type = "Resource"
 
 	// connect to the client
 	ctx, cancel, client, err := connectMongo()
 	defer cancel()
 
 	if err != nil {
-		return fmt.Errorf("%w: %s", ErrMongoClient, err.Error())
+		return fmt.Errorf("%w: %s", errMongoClient, err.Error())
 	}
 
 	// connect to collection
-	collection := client.Database(MongoDatabase).Collection(MongoCollection)
+	collection := client.Database(mongoDatabase).Collection(mongoCollection)
 
 
 	//TODO:  prove owner exists
 
 	// create document
-	_, err = collection.InsertOne(ctx, res)
+	_, err = collection.InsertOne(ctx, r)
 
 	if err == nil {
 		return nil
 	}
 
-	if ErrorDocumentExists(err) {
-		return ErrDocumentExists
+	if errorDocumentExists(err) {
+		return errDocumentExists
 	}
 
 	return err
 }
 
-func (r *Resource) Get() error {
-	var b []byte
-	var err error
+func (r *Resource) get() error {
 
-	b, err = MongoFindOne(r.Id)
+	ctx, cancel, client, err := connectMongo()
+	defer cancel()
+
 	if err != nil {
+		err = fmt.Errorf("%w: %s", errMongoClient, err.Error())
 		return err
 	}
 
-	err = bson.Unmarshal(b, &r)
+	collection := client.Database(mongoDatabase).Collection(mongoCollection)
+	err = collection.FindOne(ctx, bson.D{{"@id", r.ID}}).Decode(&r)
+
 	return err
 
 }
 
-func (r *Resource) Delete() error {
+func (r *Resource) delete() error {
 
 	var err error
 
@@ -78,21 +80,21 @@ func (r *Resource) Delete() error {
 	defer cancel()
 
 	if err != nil {
-		return fmt.Errorf("%w: %s", ErrMongoClient, err.Error())
+		return fmt.Errorf("%w: %s", errMongoClient, err.Error())
 	}
 
 	// connect to collection
-	collection := client.Database(MongoDatabase).Collection(MongoCollection)
+	collection := client.Database(mongoDatabase).Collection(mongoCollection)
 
 	// Query for the Resource, prove it exists
-	err = collection.FindOne(ctx, bson.D{{"@id", r.Id}}).Decode(&r)
+	err = collection.FindOne(ctx, bson.D{{"@id", r.ID}}).Decode(&r)
 	if err != nil {
 		return fmt.Errorf("DeleteResourceError: Group Not Found: %w", err)
 	}
 
 	// Delete All Policies with Resource
 	_, err = collection.DeleteMany(ctx,
-		bson.D{{"resource", r.Id}, {"@type", "Policy"}},
+		bson.D{{"resource", r.ID}, {"@type", "Policy"}},
 	)
 
 	if err != nil {
@@ -100,7 +102,7 @@ func (r *Resource) Delete() error {
 	}
 
 	// Delete the Resource Object
-	_, err = collection.DeleteOne(ctx, bson.D{{"@id", r.Id}, {"@type", "Resource"}})
+	_, err = collection.DeleteOne(ctx, bson.D{{"@id", r.ID}, {"@type", "Resource"}})
 
 	if err != nil {
 		return fmt.Errorf("DeleteResourceError: Failed to Delete Resource: %w", err)
@@ -115,11 +117,11 @@ func listResources() (r []Resource, err error) {
 	defer cancel()
 
 	if err != nil {
-		err = fmt.Errorf("%w: %s", ErrMongoClient, err.Error())
+		err = fmt.Errorf("%w: %s", errMongoClient, err.Error())
 		return
 	}
 
-	collection := client.Database(MongoDatabase).Collection(MongoCollection)
+	collection := client.Database(mongoDatabase).Collection(mongoCollection)
 
 	query := bson.D{{"@type", "Resource"}}
 	cur, err := collection.Find(mongoCtx, query, nil)
@@ -138,6 +140,7 @@ func listResources() (r []Resource, err error) {
 }
 
 
+// ResourceCreate is the http handler for the api operation to create a resource
 func ResourceCreate(w http.ResponseWriter, r *http.Request) {
 
 	// read and marshal body json into
@@ -163,20 +166,20 @@ func ResourceCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = res.Create()
+	err = res.create()
 
 	if err == nil {
 		w.WriteHeader(201)
 		w.Header().Set("Content-Type", "application/ld+json")
-		w.Write([]byte(`{"created": {"@id": "` + res.Id + `"}}`))
+		w.Write([]byte(`{"created": {"@id": "` + res.ID + `"}}`))
 		return
 	}
 
 	// Error for when the User with u.Id Already Exists
-	if errors.Is(err, ErrDocumentExists) {
+	if errors.Is(err, errDocumentExists) {
 		w.WriteHeader(400)
 		w.Header().Set("Content-Type", "application/ld+json")
-		w.Write([]byte(`{"error": "User Already Exists" ,"@id": "` + res.Id + `"}`))
+		w.Write([]byte(`{"error": "User Already Exists" ,"@id": "` + res.ID + `"}`))
 		return
 	}
 
@@ -188,11 +191,68 @@ func ResourceCreate(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// TODO: (LowPriority) Write Handler for basic Get Resource by ID
-func ResourceGet(w http.ResponseWriter, r *http.Request) {}
+// ResourceGet is the http handler for retrieving a single resource by ID
+func ResourceGet(w http.ResponseWriter, r *http.Request) {
 
-// TODO: (MidPriority) Write Handler for deletion by ID
-func ResourceDelete(w http.ResponseWriter, r *http.Request) {}
+	
+	var resource Resource
+	var err error
 
-// TODO: (LowPriority) Write Handler listing and filtering resources
+	// get the user id from the route
+	params := httprouter.ParamsFromContext(r.Context())
+
+	resource.ID = params.ByName("resourceID")
+	err = resource.get()
+
+	if err != nil {
+		// TODO: error handling for resource.get() 
+		return
+	}
+
+	responseBytes, err := json.Marshal(resource)
+
+	if err != nil {
+		// TODO: error handling for json marshal
+		return
+	}
+
+	w.WriteHeader(200)
+	w.Header().Set("Content-Type", "application/ld+json")
+	w.Write(responseBytes)
+	return
+
+}
+
+// ResourceDelete is the http handler for deleting a single resource by ID
+func ResourceDelete(w http.ResponseWriter, r *http.Request) {
+
+	var resource Resource
+	var err error
+
+	// get the user id from the route
+	params := httprouter.ParamsFromContext(r.Context())
+
+	resource.ID = params.ByName("resourceID")
+	err = resource.delete()
+
+	if err != nil {
+		// TODO: error handling for resource.get() 
+		return
+	}
+
+	responseBytes, err := json.Marshal(resource)
+
+	if err != nil {
+		// TODO: error handling for json marshal
+		return
+	}
+
+	w.WriteHeader(200)
+	w.Header().Set("Content-Type", "application/ld+json")
+	w.Write(responseBytes)
+	return
+
+}
+
+// ResourceList is for listing all the current resources
 func ResourceList(w http.ResponseWriter, r *http.Request) {}

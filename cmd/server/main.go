@@ -41,20 +41,20 @@ func main() {
 
     router.Handler("POST", "/resource", http.HandlerFunc(auth.ResourceCreate))
     router.Handler("GET", "/resource", http.HandlerFunc(auth.ResourceList))
-    router.Handler("GET", "/resource/:ID", http.HandlerFunc(auth.ResourceGet))
-    router.Handler("DELETE", "/resource/:ID", http.HandlerFunc(auth.ResourceDelete))
+    router.Handler("GET", "/resource/:resourceID", http.HandlerFunc(auth.ResourceGet))
+    router.Handler("DELETE", "/resource/:resourceID", http.HandlerFunc(auth.ResourceDelete))
 
     router.Handler("POST", "/policy", http.HandlerFunc(auth.PolicyCreate))
     router.Handler("GET", "/policy", http.HandlerFunc(auth.PolicyList))
-    router.Handler("GET", "/policy/:ID", http.HandlerFunc(auth.PolicyGet))
-    router.Handler("PUT", "/policy/:ID", http.HandlerFunc(auth.PolicyUpdate))
-    router.Handler("DELETE", "/policy/:ID", http.HandlerFunc(auth.PolicyDelete))
+    router.Handler("GET", "/policy/:policyID", http.HandlerFunc(auth.PolicyGet))
+    router.Handler("PUT", "/policy/:policyID", http.HandlerFunc(auth.PolicyUpdate))
+    router.Handler("DELETE", "/policy/:policyID", http.HandlerFunc(auth.PolicyDelete))
 
     router.Handler("POST", "/group", http.HandlerFunc(auth.GroupCreate))
     router.Handler("GET", "/group", http.HandlerFunc(auth.GroupList))
-    router.Handler("GET", "/group/:ID", http.HandlerFunc(auth.GroupGet))
-    router.Handler("PUT", "/group/:ID", http.HandlerFunc(auth.GroupUpdate))
-    router.Handler("DELETE", "/group/:ID", http.HandlerFunc(auth.GroupDelete))
+    router.Handler("GET", "/group/:groupID", http.HandlerFunc(auth.GroupGet))
+    router.Handler("PUT", "/group/:groupID", http.HandlerFunc(auth.GroupUpdate))
+	router.Handler("DELETE", "/group/:groupID", http.HandlerFunc(auth.GroupDelete))
 
 	log.Fatal(http.ListenAndServe(":80", router))
 
