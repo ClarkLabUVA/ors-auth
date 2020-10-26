@@ -78,7 +78,7 @@ func (p Policy) create() error {
 	// cur, err = collection.Find(ctx, bson.D{{"@id", bson.D{{"$in", p.Principal}}   }})
 
 	// create policy record
-	p.Type = "Policy"
+	p.Type = typePolicy
 	_, err = collection.InsertOne(ctx, p)
 
 	if err != nil {

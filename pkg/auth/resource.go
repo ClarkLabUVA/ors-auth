@@ -1,30 +1,32 @@
 package auth
 
 import (
+	"strings"
 	"net/http"
 	"io/ioutil"
 	"errors"
 	"encoding/json"
-
+	"log"
 	"fmt"
-	bson "go.mongodb.org/mongo-driver/bson"
-		
+	bson "go.mongodb.org/mongo-driver/bson"		
 	"github.com/julienschmidt/httprouter"
 )
 
 
 // Resource is a structure for documenting entities contained in the framework
 type Resource struct {
-	ID    string `json:"@id" bson:"@id"`
-	Type  string `json:"@type" bson:"@type"` 
-	Owner string `json:"owner" bson:"owner"`
+	ID    	string `json:"@id" bson:"@id"`
+	Type  	string `json:"@type" bson:"@type"` 
+	Owner 	string `json:"owner" bson:"owner"`
+	Users 	[]string `json:"users" bson:"users"`
+	Group 	[]string `json:"groups" bson: "groups"`
 }
 
 func (r *Resource) create() error {
 
 	var err error
 
-	r.Type = "Resource"
+	r.Type = typeResource
 
 	// connect to the client
 	ctx, cancel, client, err := connectMongo()
@@ -123,7 +125,7 @@ func listResources() (r []Resource, err error) {
 
 	collection := client.Database(mongoDatabase).Collection(mongoCollection)
 
-	query := bson.D{{"@type", "Resource"}}
+	query := bson.D{{"@type", typeResource}}
 	cur, err := collection.Find(mongoCtx, query, nil)
 	defer cur.Close(mongoCtx)
 	if err != nil {
@@ -198,10 +200,12 @@ func ResourceGet(w http.ResponseWriter, r *http.Request) {
 	var resource Resource
 	var err error
 
-	// get the user id from the route
+	// get the resource id from the route
 	params := httprouter.ParamsFromContext(r.Context())
+	resource.ID = strings.TrimPrefix(params.ByName("resourceID"), "/")
 
-	resource.ID = params.ByName("resourceID")
+	log.Printf("ResourceID: %s", resource.ID)
+	
 	err = resource.get()
 
 	if err != nil {
@@ -229,10 +233,10 @@ func ResourceDelete(w http.ResponseWriter, r *http.Request) {
 	var resource Resource
 	var err error
 
-	// get the user id from the route
+	// get the resource id from the route
 	params := httprouter.ParamsFromContext(r.Context())
+	resource.ID = strings.TrimPrefix(params.ByName("resourceID"), "/")
 
-	resource.ID = params.ByName("resourceID")
 	err = resource.delete()
 
 	if err != nil {
