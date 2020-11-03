@@ -7,12 +7,14 @@ import (
 
 func init() {
 	// drop collection
-	MongoCollection = "test"
+	mongoDatabase = "test"
+	mongoCollection = "test"
+	mongoURI = "mongodb://mongouser:mongosecret@127.0.0.1:27017"
 
 	mongoCtx, cancel, client, _ := connectMongo()
 	defer cancel()
 
-	client.Database(MongoDatabase).Collection(MongoCollection).Drop(mongoCtx)
+	client.Database(mongoDatabase).Collection(mongoCollection).Drop(mongoCtx)
 }
 
 // Basic CRUD Tests for Groups
@@ -20,48 +22,48 @@ func TestGroupMethods(t *testing.T) {
 	var err error
 
 	admin := User{
-		Id: "orcid:1",
+		ID: "orcid:1",
 		Email: "admin@gmail.com",
-		Type: TypeUser,
+		Type: typeUser,
 		Groups: []string{},
 	}
 
-	err = admin.Create()
+	err = admin.create()
 
 	if err != nil {
 		t.Fatalf("SetupFailure: Failed to Create Admin\t Error: %s", err.Error())
 	}
 
 	member := User{
-		Id: "member",
+		ID: "member",
 		Email: "member@gmail.com",
-		Type: TypeUser,
+		Type: typeUser,
 		Groups: []string{},
 	}
-	err = member.Create()
+	err = member.create()
 
 	if err != nil {
 		t.Fatalf("SetupFailure: Failed to Create User\t Error: %s", err.Error())
 	}
 
 	g := Group{
-		Id: "group1",
-		Type: TypeGroup,
-		Admin: "orcid:1",
-		Members: []string{"orcid:2"},
+		ID: "group1",
+		Type: typeGroup,
+		Admin: admin.ID,
+		Members: []string{member.ID},
 	}
 
 	t.Run("Create", func(t *testing.T) {
 
-		err := g.Create()
+		err := g.create()
 		if err != nil {
 			t.Fatalf("Failed to Create Group: %s", err.Error())
 		}
 
 		// Verify Admin has member of group
 		var updatedAdmin User
-		updatedAdmin.Id = admin.Id
-		err = updatedAdmin.Get()
+		updatedAdmin.ID = admin.ID
+		err = updatedAdmin.get()
 
 		if err != nil {
 			t.Fatalf("Failed to Fetch Updated Admin: %s", err.Error())
@@ -73,8 +75,8 @@ func TestGroupMethods(t *testing.T) {
 
 		// Verify User is member of group
 		var updatedUser User
-		updatedUser.Id = member.Id
-		err = updatedUser.Get()
+		updatedUser.ID = member.ID
+		err = updatedUser.get()
 
 		if err != nil {
 			t.Fatalf("Failed to Fetch Updated User: %s", err.Error())
@@ -83,8 +85,8 @@ func TestGroupMethods(t *testing.T) {
 	})
 
 	t.Run("Get", func(t *testing.T) {
-		found := Group{Id: "group1"}
-		err := found.Get()
+		found := Group{ID: "group1"}
+		err := found.get()
 		if err != nil {
 			t.Fatalf("Failed to Find Group: %s", err.Error())
 		}
@@ -98,8 +100,8 @@ func TestGroupMethods(t *testing.T) {
 	})
 
 	t.Run("Delete", func(t *testing.T) {
-		del := Group{Id: "group1"}
-		err := del.Delete()
+		del := Group{ID: "group1"}
+		err := del.delete()
 		if err != nil {
 			t.Fatalf("Failed to Delete Group: %s", err.Error())
 		}
@@ -108,8 +110,15 @@ func TestGroupMethods(t *testing.T) {
 	})
 
 
-	admin.Delete()
-	member.Delete()
+	// TODO does the user session obtain the new groups
+
+
+	// Clean up test
+	/*
+	admin.delete()
+	member.delete()
+	*/
+
 
 }
 
@@ -128,7 +137,7 @@ func TestGroupJSONUnmarshal(t *testing.T) {
 func TestGroupJSONMarshal(t *testing.T) {
 
 	g := Group{
-		Id:      "test_group",
+		ID:      "test_group",
 		Type:    "Group",
 		Name:    "test_group",
 		Admin:   "max",

@@ -17,7 +17,7 @@ func TestUserLogout(t *testing.T) {
 		Type: typeUser,
 		Name: "TestUser",
 		Email: "test@example.org",
-		IsAdmin: false,
+		Role: "Admin",
 		AccessToken: accessToken,
 		RefreshToken: "refresh",
 	}
@@ -64,7 +64,7 @@ func TestUserHandlers(t *testing.T) {
 		ID:      "orcid:1234-1234",
 		Name:    "Joe Schmoe",
 		Email:   "joe.schmoe@example.org",
-		IsAdmin: false,
+		Role: "Admin",
 		Groups:  []string{},
 	}
 
@@ -135,7 +135,7 @@ func TestUserMethods(t *testing.T) {
 		Type: 	typeUser,
 		Name:    "Joe Schmoe",
 		Email:   "JoeSchmoe@example.org",
-		IsAdmin: false,
+		Role: "User",
 		Groups:  []string{},
 	}
 
@@ -255,8 +255,8 @@ func TestUserJSONMarshal(t *testing.T) {
 		Email:   "mlev@example.org",
 		Name:    "maxwell",
 		Groups:  []string{"LevinsonFam", "Bagel Enthusiast"},
-		IsAdmin: false,
-		Session: "abcd",
+		Role: "Admin",
+		AccessToken: "abcd",
 	}
 	userJSON, err := json.Marshal(u)
 

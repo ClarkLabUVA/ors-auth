@@ -503,13 +503,13 @@ func (intro GlobusIntrospectedToken) findUser() (u User, err error) {
 
 func (intro GlobusIntrospectedToken) registerUser() (u User, err error) {
 
-	userId, err := uuid.NewUUID()
+	userID, err := uuid.NewUUID()
 	if err != nil {
-		err = fmt.Errorf("%w: %w", errUUID, err)
+		err = fmt.Errorf("%s: %w", errUUID.Error(), err)
 		return
 	}
 
-	u.ID = userId.String()
+	u.ID = userID.String()
 	u.Name = intro.Name
 	u.Email = intro.Email
 

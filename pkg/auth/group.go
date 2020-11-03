@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
 	"errors"
 	"io/ioutil"
@@ -175,24 +176,45 @@ func (g *Group) create() (err error) {
 
 	// add membership of group
 	adminResult := collection.FindOneAndUpdate(ctx,
-		bson.D{{"@id", g.Admin}, {"@type", typeUser}},
+		bson.D{{"@id", g.Admin}},
 		bson.D{{"$addToSet", bson.D{{"groups", g.ID}}}},
 	)
 
 	if err = adminResult.Err(); err != nil {
+		
 		// TODO: error wrapping
+		if  err == mongo.ErrNilDocument {
+			err = fmt.Errorf("Unable to find Admin of Group: %w", err)
+		}
+
 		return
 	}
 
 	// Update each member to add Groups
 	_, err = collection.UpdateMany(ctx,
 		// elem match
-		bson.D{{"@id", bson.D{{"$elemMatch", bson.D{{"@id", g.Members}}}}}},
-		bson.D{{"$addToSet", bson.D{{"groups", g.ID}}}},
+		bson.D{{
+			"@id", 
+			bson.D{{
+				"$in", 
+				g.Members,
+				}},
+			}},
+		bson.D{{
+			"$addToSet", 
+			bson.D{{
+				"groups", 
+				g.ID,
+			}},
+		}},
 	)
 
 	if err != nil {
+
 		// TODO: error wrapping
+		if  err == mongo.ErrNilDocument {
+			err = fmt.Errorf("Unable to find member of Group: %w", err)
+		}
 
 		// TODO: undo admin update
 		return
@@ -238,6 +260,21 @@ func (g *Group) delete() error {
 		return fmt.Errorf("DeleteGroupError: Group Not Found: %w", err)
 	}
 
+	// remove group from admin user
+	_, err = collection.UpdateMany(ctx,
+		bson.D{{
+			"@id", 
+			g.Admin,
+		}},
+		bson.D{{
+			"$pull", 
+			bson.D{{
+				"groups", 
+				g.ID,
+			}},
+		}},
+	)
+
 	// remove all users as members
 	_, err = collection.UpdateMany(ctx,
 		bson.D{{"@id", bson.D{{"$in", g.Members}}}},
@@ -246,16 +283,6 @@ func (g *Group) delete() error {
 
 	if err != nil {
 		return fmt.Errorf("DeleteGroupError: Failed Updating Members: %w", err)
-	}
-
-	// remove from policies
-	_, err = collection.UpdateMany(ctx,
-		bson.D{{"@type", "Policy"}},
-		bson.D{{"$pull", bson.D{{"principal", g.ID}}}},
-	)
-
-	if err != nil {
-		return fmt.Errorf("DeleteGroupError: Failed Updating Policies: %w", err)
 	}
 
 	_, err = collection.DeleteOne(ctx,

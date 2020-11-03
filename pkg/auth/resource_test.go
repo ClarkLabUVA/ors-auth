@@ -7,20 +7,21 @@ import (
 
 func TestResourceMethods(t *testing.T) {
 
-	u := User{Id: "owner"}
+	u := User{ID: "owner"}
 
-	r := Resource{Id: "res1", Owner: u.Id}
+	r := Resource{ID: "res1", Owner: u.ID}
 
 	t.Run("Create", func(t *testing.T) {
-		err := r.Create()
+		err := r.create()
 		if err != nil {
 			t.Fatalf("Failed to Create Resource: %s", err.Error())
 		}
 	})
 
 	t.Run("Get", func(t *testing.T) {
-		found := Resource{Id: "res1"}
-		err := found.Get()
+		found := Resource{ID: "res1"}
+		err := found.get()
+
 		if err != nil {
 			t.Fatalf("Failed to Find Resource: %s", err.Error())
 		}
@@ -35,8 +36,9 @@ func TestResourceMethods(t *testing.T) {
 	})
 
 	t.Run("Delete", func(t *testing.T) {
-		del := Resource{Id: "res1"}
-		err := del.Delete()
+
+		del := Resource{ID: "res1"}
+		err := del.delete()
 		if err != nil {
 			t.Fatalf("DeleteResourceError: %s", err.Error())
 		}
@@ -51,7 +53,7 @@ func TestResourceJSONUnmarshal(t *testing.T) {}
 func TestResourceJSONMarshal(t *testing.T) {
 
 	r := Resource{
-		Id:    "resource1",
+		ID:    "resource1",
 		Type:  "resource",
 		Owner: "max",
 	}
