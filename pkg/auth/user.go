@@ -3,6 +3,7 @@ package auth
 import (
 	"net/http"
 	"io/ioutil"
+	"strings"
 	"errors"
 	"encoding/json"
 	"github.com/julienschmidt/httprouter"
@@ -72,28 +73,49 @@ type User struct {
 	RefreshToken string	`json:"refresh_token" bson:"refresh_token"`
 }
 
+type UserTokenClaims struct {
+	Role string `json:"role"`
+	Groups string `json:"groups"`
+	jwt.StandardClaims
+}
+
 // loginUser creates a JWT for the user for use with ORS services
 // it also stores this token within the user record for easy verification
 func (u *User) newSession() (err error) {
 
-    now := time.Now()
+	now := time.Now()
+	
+	claims := UserTokenClaims {
+		u.Role,
+		strings.Join(u.Groups, ";"),
+		jwt.StandardClaims{
+			Subject: u.ID,
+			Audience: "https://fairscape.org",
+			IssuedAt: now.Unix(),
+			ExpiresAt: now.Add(time.Hour * 48).Unix(),
+		},
+	}
 
-    accessToken := jwt.NewWithClaims(
-        jwt.SigningMethodHS256,
-        jwt.MapClaims{
-            "sub": u.ID,
-            "iat": now.Unix(),
-            "exp": now.Add(time.Hour * 48).Unix(),
-            "aud": "https://fairscape.org", //audience allowed to access the services
-            "name": u.Name,
-            "role": u.Role,
-            "groups": u.Groups,
-        },
-    )
-
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
     u.AccessToken, err = accessToken.SignedString(jwtSecret)
 
     return
+}
+
+// parseToken takes the string value of the token and returns the user information contained within
+func parseToken(tokenString string) (u User, err error) {
+
+	token, err := jwt.ParseWithClaims(tokenString, &UserTokenClaims{}, func(token *jwt.Token) (interface {}, error) {
+		// no secret currently
+		return jwtSecret, nil
+	})
+
+
+	claims := token.Claims.(*UserTokenClaims)
+
+	log.Printf("%+v", claims)
+
+	return 
 }
 
 

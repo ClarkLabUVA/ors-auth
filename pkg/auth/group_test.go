@@ -7,9 +7,9 @@ import (
 
 func init() {
 	// drop collection
-	mongoDatabase = "test"
-	mongoCollection = "test"
-	mongoURI = "mongodb://mongouser:mongosecret@127.0.0.1:27017"
+	// mongoDatabase = "test"
+	// mongoCollection = "test"
+	// mongoURI = "mongodb://mongouser:mongosecret@127.0.0.1:27017"
 
 	mongoCtx, cancel, client, _ := connectMongo()
 	defer cancel()
@@ -24,6 +24,7 @@ func TestGroupMethods(t *testing.T) {
 	admin := User{
 		ID: "orcid:1",
 		Email: "admin@gmail.com",
+		Role: "admin",
 		Type: typeUser,
 		Groups: []string{},
 	}
@@ -37,6 +38,7 @@ func TestGroupMethods(t *testing.T) {
 	member := User{
 		ID: "member",
 		Email: "member@gmail.com",
+		Role: "user",
 		Type: typeUser,
 		Groups: []string{},
 	}
@@ -99,6 +101,37 @@ func TestGroupMethods(t *testing.T) {
 		}
 	})
 
+	t.Run("GroupsInToken", func(t *testing.T) {
+
+		// TODO does the user session obtain the new groups
+		admin.get()
+
+
+		err = admin.newSession()
+		if err != nil {
+			t.Fatalf("Failed to create a new session for admin user: %s", err.Error())
+		}
+
+		// check if user session has the groups inside it
+		_, err = parseToken(admin.AccessToken)
+		if err != nil {
+			t.Fatalf("Failed to parse token: %s", err.Error())
+		}
+
+	})
+
+
+
+	/*
+	// do the same for the member of the group
+	err = member.newSession()
+	if err != nil {
+		t.Fatalf("Failed to create a new session for admin user: %s", err.Error())
+	}
+	*/
+
+
+	/*
 	t.Run("Delete", func(t *testing.T) {
 		del := Group{ID: "group1"}
 		err := del.delete()
@@ -109,10 +142,7 @@ func TestGroupMethods(t *testing.T) {
 		t.Logf("Deleted Group: %+v", del)
 	})
 
-
-	// TODO does the user session obtain the new groups
-
-
+	*/
 	// Clean up test
 	/*
 	admin.delete()
