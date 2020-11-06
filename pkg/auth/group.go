@@ -2,6 +2,7 @@ package auth
 
 import (
 	"go.mongodb.org/mongo-driver/mongo"
+	"log"
 	"net/http"
 	"errors"
 	"io/ioutil"
@@ -67,46 +68,46 @@ func (g Group) MarshalJSON() ([]byte, error) {
 
 
 // UnmarshalJSON is the custom method for converting the JSON bytes into the struct
-func (g *Group) UnmarshalJSON(data []byte) error {
-	var err error
-
-	aux := struct {
-		Name    string   `json:"name"`
-		Admin   string   `json:"admin"`
-		Members []string `json:"members"`
-	}{}
-
-	err = json.Unmarshal(data, &aux)
-	if err != nil {
-		return fmt.Errorf("%w: %s", errJSONUnmarshal, err.Error())
-	}
-
-	groupID, err := uuid.NewUUID()
-	if err != nil {
-		return fmt.Errorf("%w: %s", errUUID, err.Error())
-	}
-
-	// validate name
-	if aux.Name == "" {
-		return fmt.Errorf("%w: Group missing Name", errModelMissingField)
-	}
-
-	// validate admin is not null
-	if aux.Admin == "" {
-		return fmt.Errorf("%w: Group missing Admin", errModelMissingField)
-	}
-
-	// add admin to members
-	aux.Members = append(aux.Members, aux.Admin)
-
-	g.ID = groupID.String()
-	g.Name = aux.Name
-	g.Admin = aux.Admin
-	g.Members = aux.Members
-	g.Type = typeGroup
-
-	return err
-}
+// func (g *Group) UnmarshalJSON(data []byte) error {
+// 	var err error
+//
+// 	aux := struct {
+// 		Name    string   `json:"name"`
+// 		Admin   string   `json:"admin"`
+// 		Members []string `json:"members"`
+// 	}{}
+//
+// 	err = json.Unmarshal(data, &aux)
+// 	if err != nil {
+// 		return fmt.Errorf("%w: %s", errJSONUnmarshal, err.Error())
+// 	}
+//
+// 	groupID, err := uuid.NewUUID()
+// 	if err != nil {
+// 		return fmt.Errorf("%w: %s", errUUID, err.Error())
+// 	}
+//
+// 	// validate name
+// 	if aux.Name == "" {
+// 		return fmt.Errorf("%w: Group missing Name", errModelMissingField)
+// 	}
+//
+// 	// validate admin is not null
+// 	if aux.Admin == "" {
+// 		return fmt.Errorf("%w: Group missing Admin", errModelMissingField)
+// 	}
+//
+// 	// add admin to members
+// 	aux.Members = append(aux.Members, aux.Admin)
+//
+// 	g.ID = groupID.String()
+// 	g.Name = aux.Name
+// 	g.Admin = aux.Admin
+// 	g.Members = aux.Members
+// 	g.Type = typeGroup
+//
+// 	return err
+// }
 
 func listGroups() (g []Group, err error) {
 
@@ -155,17 +156,24 @@ func (g *Group) get() (err error) {
 // add owner to members
 // update all members User profile to have
 func (g *Group) create() (err error) {
-
+	groupID, err := uuid.NewUUID()
+	if err != nil {
+			return fmt.Errorf("%w: %s", errUUID, err.Error())
+	}
+	g.ID = groupID.String()
 	// connect to the client
+	log.Printf("Trying to create group.")
 	ctx, cancel, client, err := connectMongo()
 	defer cancel()
 
 	if err != nil {
+		log.Printf("Failed at connecting.")
 		err = fmt.Errorf("%w: %s", errMongoClient, err.Error())
 		return
 	}
 
 	// connect to collection
+	log.Printf("Connected.")
 	collection := client.Database(mongoDatabase).Collection(mongoCollection)
 
 	//TODO: check that group doesn't already exist
@@ -175,13 +183,16 @@ func (g *Group) create() (err error) {
 	//TODO: error for users who don't exists
 
 	// add membership of group
+	log.Printf("Adding Admin.")
+	log.Printf("Admin id %s",g.Admin)
+	log.Printf("Group id %s",g.ID)
 	adminResult := collection.FindOneAndUpdate(ctx,
 		bson.D{{"@id", g.Admin}},
 		bson.D{{"$addToSet", bson.D{{"groups", g.ID}}}},
 	)
 
 	if err = adminResult.Err(); err != nil {
-		
+		log.Printf("Failed to add admin.")
 		// TODO: error wrapping
 		if  err == mongo.ErrNilDocument {
 			err = fmt.Errorf("Unable to find Admin of Group: %w", err)
@@ -189,28 +200,28 @@ func (g *Group) create() (err error) {
 
 		return
 	}
-
+	log.Printf("Past Admin part.")
 	// Update each member to add Groups
 	_, err = collection.UpdateMany(ctx,
 		// elem match
 		bson.D{{
-			"@id", 
+			"@id",
 			bson.D{{
-				"$in", 
+				"$in",
 				g.Members,
 				}},
 			}},
 		bson.D{{
-			"$addToSet", 
+			"$addToSet",
 			bson.D{{
-				"groups", 
+				"groups",
 				g.ID,
 			}},
 		}},
 	)
 
 	if err != nil {
-
+		log.Printf("Failed group part.")
 		// TODO: error wrapping
 		if  err == mongo.ErrNilDocument {
 			err = fmt.Errorf("Unable to find member of Group: %w", err)
@@ -223,6 +234,7 @@ func (g *Group) create() (err error) {
 	_, err = collection.InsertOne(ctx, g)
 	if err != nil {
 
+		log.Printf("Failed to insert.")
 		// TODO: error wrapping
 
 		// TODO: undo admin update
@@ -263,13 +275,13 @@ func (g *Group) delete() error {
 	// remove group from admin user
 	_, err = collection.UpdateMany(ctx,
 		bson.D{{
-			"@id", 
+			"@id",
 			g.Admin,
 		}},
 		bson.D{{
-			"$pull", 
+			"$pull",
 			bson.D{{
-				"groups", 
+				"groups",
 				g.ID,
 			}},
 		}},
@@ -324,7 +336,7 @@ func GroupCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = json.Unmarshal(requestBody, &r)
+	err = json.Unmarshal(requestBody, &g)
 
 	if err != nil {
 		w.WriteHeader(400)
@@ -373,7 +385,7 @@ func GroupGet(w http.ResponseWriter, r *http.Request) {
 	err = group.get()
 
 	if err != nil {
-		// TODO: error handling for p.get() 
+		// TODO: error handling for p.get()
 		return
 	}
 
@@ -405,7 +417,7 @@ func GroupDelete(w http.ResponseWriter, r *http.Request) {
 	err = group.delete()
 
 	if err != nil {
-		// TODO: error handling for p.get() 
+		// TODO: error handling for p.get()
 		return
 	}
 
