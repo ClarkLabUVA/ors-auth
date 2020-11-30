@@ -50,6 +50,6 @@ func main() {
     router.Handler("PUT", "/group/:groupID", http.HandlerFunc(auth.GroupUpdate))
 	router.Handler("DELETE", "/group/:groupID", http.HandlerFunc(auth.GroupDelete))
 
-	log.Fatal(http.ListenAndServe(":80", router))
+	log.Fatal(http.ListenAndServe(":8080", router))
 
 }
