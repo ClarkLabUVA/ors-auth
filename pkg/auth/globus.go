@@ -4,7 +4,7 @@
 //The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 //THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-package globus
+package auth
 
 import (
 	"errors"
@@ -15,15 +15,17 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"github.com/google/uuid"
+	"time"
 )
 
 var (
-	ErrGlobusRevoke   = errors.New("Error Revoking Globus Token")
-	ErrGlobusExchange = errors.New("Error Exchanging Globus Authorization Code for Globus Token")
-	ErrHTTPInit       = errors.New("Error Creating HTTP Request")
-	ErrHTTPRequest    = errors.New("Error Preforming HTTP Request")
+	errGlobusRevoke   = errors.New("Error Revoking Globus Token")
+	errGlobusExchange = errors.New("Error Exchanging Globus Authorization Code for Globus Token")
+	errHTTPInit       = errors.New("Error Creating HTTP Request")
+	errHTTPRequest    = errors.New("Error Preforming HTTP Request")
 )
 
+// GlobusAuthClient is a struct for globus credentials and provides methods and handlers for the 3-legged oauth flow
 type GlobusAuthClient struct {
 	ClientID     string
 	ClientSecret string
@@ -133,12 +135,11 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 	// if error isn't no document found
 	if err != nil {
 
-		if err == ErrNoDocument {
+		if err == errNoDocument {
 
 			response["message"] = "No user record found"
 			response["error"] = err.Error()
 			response["status_code"] = 404
-			response["globus_token"] = introspectedToken
 
 			encodedResponse, _ := json.Marshal(response)
 			w.Write(encodedResponse)
@@ -150,7 +151,6 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 		response["message"] = "Error Querying Database"
 		response["error"] = err.Error()
 		response["status_code"] = 500
-		response["globus_token"] = introspectedToken
 
 		encodedResponse, _ := json.Marshal(response)
 		w.Write(encodedResponse)
@@ -159,10 +159,36 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	response["user"] = user
-	response["access_token"] = token
-	response["introspected"] = introspectedToken
-	response["status_code"] = 200
+    // create a new session
+    err = user.newSession()
+    
+    if err != nil { 
+
+		response["message"] = "Error creating new session token"
+		response["error"] = err.Error()
+		response["status_code"] = 500
+
+		encodedResponse, _ := json.Marshal(response)
+		w.Write(encodedResponse)
+		w.WriteHeader(500)
+		return
+
+    }
+
+
+	// add a a cookie with the token value
+	authCookie := http.Cookie{
+		Name: "fairscapeAuth",
+		Value: user.AccessToken,
+		Expires: time.Unix(int64(introspectedToken.Expiration), 0),
+        Path: "/",
+        Secure: false,
+	}
+
+	http.SetCookie(w, &authCookie)
+
+	response["token"] = user.AccessToken
+	//response["introspected"] = introspectedToken
 	//response["identities"] = identitiesResponse.Identities
 
 	resp, err := json.Marshal(response)
@@ -179,13 +205,14 @@ func (g GlobusAuthClient) CodeHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// RevokeHandler is the http.HandlerFunc for revoking the globus token
 func (g GlobusAuthClient) RevokeHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
 	// get the bearer token
-	token := strings.TrimPrefix("Bearer ", r.Header.Get("Authorization"))
-	u, err := g.revokeToken(token)
+	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	_, err := g.revokeToken(token)
 
 	if err != nil {
 		w.Write([]byte(`{"message": "Globus Token Revokation Failed", "error": "` + err.Error() + `"}`))
@@ -193,11 +220,65 @@ func (g GlobusAuthClient) RevokeHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	responseBody, _ := json.Marshal(u)
-	w.Write(responseBody)
+	// responseBody, _ := json.Marshal(u)
+	// w.Write(responseBody)
+	w.Write([]byte(`{"message": "logged user out"}`))
 	w.WriteHeader(200)
 }
 
+// InspectHandler is the http.HandlerFunc for inspecting tokens from globus and check membership
+func (g GlobusAuthClient) InspectHandler(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	var introspectedToken GlobusIntrospectedToken
+	var user User
+	var tok string
+	var responseBody []byte
+
+	// get bearer token from authorization header
+	response := make(map[string]interface{})
+	tok = strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+
+
+	// introspect globus token
+	introspectedToken, err = g.introspectToken(tok)
+
+	if err != nil {
+		response["introspectedToken"] = introspectedToken
+		response["error"] = err.Error()
+		responseBody, _ = json.Marshal(response)
+		w.Write(responseBody)
+		w.WriteHeader(401)
+		return
+	}
+
+	// check if user email is in users
+	user, err = queryUserEmail(introspectedToken.Email)
+
+	// if not return 404 user not found
+	if err != nil {
+		response["introspectedToken"] = introspectedToken
+		response["error"] = err.Error()
+		responseBody, _ = json.Marshal(response)
+		w.Write(responseBody)
+		w.WriteHeader(401)
+		return
+	}
+
+
+	// else return 204 set response headers
+	w.Header().Set("X-Client-ID", user.ID)
+	w.WriteHeader(204)
+	response["introspectedToken"] = introspectedToken
+	response["user"] = user
+	responseBody, _ = json.Marshal(response)
+	w.Write(responseBody)
+	return
+
+
+}
+
+// RefreshHandler is the http.HandlerFunc for granting a new access token from refresh tokens
 // TODO: (MidPriority) Write Handler for Refresh Token Grant
 func (g GlobusAuthClient) RefreshHandler(w http.ResponseWriter, r *http.Request) {}
 
@@ -210,7 +291,7 @@ func (g GlobusAuthClient) revokeToken(token string) (u User, err error) {
 	req, err := http.NewRequest("POST", "https://auth.globus.org/v2/oauth2/token/revoke", reqBody)
 
 	if err != nil {
-		err = fmt.Errorf("%w: %s", ErrHTTPInit, err.Error())
+		err = fmt.Errorf("%w: %s", errHTTPInit, err.Error())
 		return
 	}
 
@@ -227,7 +308,7 @@ func (g GlobusAuthClient) revokeToken(token string) (u User, err error) {
 
 	// return error for issues with HTTP Request
 	if err != nil {
-		err = fmt.Errorf("%w: %s", ErrHTTPRequest, err.Error())
+		err = fmt.Errorf("%w: %s", errHTTPRequest, err.Error())
 		return
 	}
 
@@ -236,11 +317,11 @@ func (g GlobusAuthClient) revokeToken(token string) (u User, err error) {
 
 		// if attempt to revoke token has failed
 		responseBody, _ := ioutil.ReadAll(resp.Body)
-		err = fmt.Errorf("%w: %s", ErrGlobusRevoke, string(responseBody))
+		err = fmt.Errorf("%w: %s", errGlobusRevoke, string(responseBody))
 		return
 	}
 
-	u, err = logoutUser(token)
+	//u, err = logoutUser(token)
 
 	return
 
@@ -260,7 +341,7 @@ func (g GlobusAuthClient) exchangeToken(code string) (token GlobusAccessToken, e
 	req, err := http.NewRequest("POST", "https://auth.globus.org/v2/oauth2/token", reqBody)
 
 	if err != nil {
-		err = fmt.Errorf("%w: %s", ErrHTTPInit, err.Error())
+		err = fmt.Errorf("%w: %s", errHTTPInit, err.Error())
 		return
 	}
 
@@ -279,7 +360,7 @@ func (g GlobusAuthClient) exchangeToken(code string) (token GlobusAccessToken, e
 	resp, err := client.Do(req)
 
 	if err != nil {
-		err = fmt.Errorf("%w: %s", ErrHTTPRequest, err.Error())
+		err = fmt.Errorf("%w: %s", errHTTPRequest, err.Error())
 		return
 	}
 
@@ -289,14 +370,14 @@ func (g GlobusAuthClient) exchangeToken(code string) (token GlobusAccessToken, e
 		// TODO: Fix Error Formatting for Failed Token Exchange
 		// Error is produced when using an old token
 		// err = fmt.Errorf("%w: %w", ErrGlobusExchange, string(respBody))
-		err = ErrGlobusExchange
+		err = errGlobusExchange
 		return
 	}
 
 	err = json.Unmarshal(respBody, &token)
 
 	if err != nil {
-		err = fmt.Errorf("%w: %s", ErrJSONUnmarshal, err.Error())
+		err = fmt.Errorf("%w: %s", errJSONUnmarshal, err.Error())
 		return
 	}
 
@@ -313,7 +394,7 @@ func (g GlobusAuthClient) introspectToken(token string) (introspectedToken Globu
 	req, err := http.NewRequest("POST", "https://auth.globus.org/v2/oauth2/token/introspect", reqBody)
 
 	if err != nil {
-		err = fmt.Errorf("%w: %s", ErrHTTPInit, err.Error())
+		err = fmt.Errorf("%w: %s", errHTTPInit, err.Error())
 		return
 	}
 
@@ -331,7 +412,7 @@ func (g GlobusAuthClient) introspectToken(token string) (introspectedToken Globu
 	resp, err := client.Do(req)
 
 	if err != nil {
-		err = fmt.Errorf("%w: %s", ErrHTTPRequest, err.Error())
+		err = fmt.Errorf("%w: %s", errHTTPRequest, err.Error())
 		return
 	}
 
@@ -341,7 +422,7 @@ func (g GlobusAuthClient) introspectToken(token string) (introspectedToken Globu
 
 	err = json.Unmarshal(respBody, &introspectedToken)
 	if err != nil {
-		err = fmt.Errorf("%w: %s", ErrJSONUnmarshal, err.Error())
+		err = fmt.Errorf("%w: %s", errJSONUnmarshal, err.Error())
 		return
 	}
 
@@ -357,7 +438,7 @@ func (g GlobusAuthClient) getIdentities(ids []string) (r GlobusIdentitiesRespons
 	req, err := http.NewRequest("GET", requestURI, nil)
 
 	if err != nil {
-		err = fmt.Errorf("%w: %s", ErrHTTPInit, err.Error())
+		err = fmt.Errorf("%w: %s", errHTTPInit, err.Error())
 		return
 	}
 
@@ -370,21 +451,21 @@ func (g GlobusAuthClient) getIdentities(ids []string) (r GlobusIdentitiesRespons
 	resp, err := client.Do(req)
 
 	if err != nil {
-		err = fmt.Errorf("%w: %s", ErrHTTPRequest, err.Error())
+		err = fmt.Errorf("%w: %s", errHTTPRequest, err.Error())
 		return
 	}
 
 	respBody, _ := ioutil.ReadAll(resp.Body)
 
 	if resp.StatusCode != 200 {
-		err = fmt.Errorf("%w: %s", ErrGlobusExchange, string(respBody))
+		err = fmt.Errorf("%w: %s", errGlobusExchange, string(respBody))
 		return
 	}
 
 	err = json.Unmarshal(respBody, &r)
 
 	if err != nil {
-		err = fmt.Errorf("%w: %s", ErrJSONUnmarshal, err.Error())
+		err = fmt.Errorf("%w: %s", errJSONUnmarshal, err.Error())
 	}
 
 	return
@@ -419,7 +500,7 @@ type GlobusIntrospectedToken struct {
 func (intro GlobusIntrospectedToken) findUser() (u User, err error) {
 	u, err = queryUserEmail(intro.Email)
 
-	if errors.Is(err, ErrMongoDecode) {
+	if errors.Is(err, errMongoDecode) {
 		return
 	}
 
@@ -428,18 +509,17 @@ func (intro GlobusIntrospectedToken) findUser() (u User, err error) {
 
 func (intro GlobusIntrospectedToken) registerUser() (u User, err error) {
 
-	userId, err := uuid.NewUUID()
+	userID, err := uuid.NewUUID()
 	if err != nil {
-		err = fmt.Errorf("%w: %w", ErrUUID, err)
+		err = fmt.Errorf("%s: %w", errUUID.Error(), err)
 		return
 	}
 
-	u.Id = userId.String()
+	u.ID = userID.String()
 	u.Name = intro.Name
 	u.Email = intro.Email
-	u.IsAdmin = false
 
-	err = u.Create()
+	err = u.create()
 
 	return
 }
